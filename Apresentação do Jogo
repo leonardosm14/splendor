@@ -1,0 +1,32 @@
+1. Qual a lógica do jogo, como funciona? (mostrando alguma imagem com a cara do jogo)
+
+Modo de jogar:
+
+Preparação: 
+As cartas são separadas por nível (1, 2 e 3), embaralhadas e postas a mesa na ordem crescente. De cada monte são postas as primeiras 4 cartas à mostra na mesa. Se uma das cartas retiradas for a de roubo, ela é separada e outra carta é posta à mesa. Somente quando as quatro cartas foram viradas as cartas de roubo são devolvidas ao monte, que é embaralhado novamente;
+As pedras são separadas por cor e postas na mesa.
+
+Início do jogo:
+A ordem do jogo é sorteada de forma aleatória. A cada turno, cada jogador pode escolher uma das seguintes ações:
+1.Comprar três pedras de cores diferentes;
+2.Comprar duas pedras da mesma cor;
+3.Reservar 1 carta – sem vê-la – e, se ainda houver ouro (coringa), comprar um;
+4.Comprar uma das cartas dispostas na mesa se tiver pedras o suficiente e retirar outra do baralho para pôr no lugar. Se for uma carta de roubo, fica com ela pra si e retira outra carta;
+5.Fazer uma oferta de troca de pedras a outro jogador, se ele recusar, pode escolher outra ação;
+6.Usar uma carta de roubo, se tiver, para roubar a quantidade de pedras descrita de outro jogador.
+
+Cada carta possui pontos de prestígio que variam de 0 a 5. Um jogador ganha o jogo quando a soma dos seus pontos de prestígio chega a 15
+
+2. O que faz dele um jogo não simplista? Par ou ímpar, por exemplo, seria simplista. No jogo da velha, por exemplo, é a necessidade de elaboração de um algoritmo para determinação de final da partida e vencedor. E no seu jogo? O que o faz não simplista?
+
+
+
+3. Mostre um esboço da interface do seu futuro programa (desenhado a mão, em editor de imagens, imagem obtida ou já uma implementação sob um suporte como Tkinter ou outro).
+
+
+
+4. Considerando o esboço da interface, mostre um rascunho de modelagem de casos de uso (quais as funcionalidades?) - usando Visual Paradigm ou não.
+
+
+
+5. Considerando o esboço da interface, mostre um rascunho de modelagem de classes (quais os elementos do domínio do problema?) - usando Visual Paradigm ou não.
