@@ -19,7 +19,7 @@ Cada carta possui pontos de prestígio que variam de 0 a 5. Um jogador ganha o j
 
 2. O que faz dele um jogo não simplista? Par ou ímpar, por exemplo, seria simplista. No jogo da velha, por exemplo, é a necessidade de elaboração de um algoritmo para determinação de final da partida e vencedor. E no seu jogo? O que o faz não simplista?
 
-
+No Splendor teria implementado algoritimos de troca de pedras entre jogadores e um algoritimo para roubar certa quantidade de pedras do outro jogador.
 
 3. Mostre um esboço da interface do seu futuro programa (desenhado a mão, em editor de imagens, imagem obtida ou já uma implementação sob um suporte como Tkinter ou outro).
 
