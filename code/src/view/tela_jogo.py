@@ -10,7 +10,6 @@ import os
 
 class TelaJogo:
     def __init__(self, root: Tk, show_screen):
-        self.root = root
         self.show_screen = show_screen
         self.images = {}
 
@@ -61,7 +60,7 @@ class TelaJogo:
 
         # main canvas
         self.canvas = Canvas(
-            self.root,
+            root,
             width=self.WINDOW_WIDTH,
             height=self.WINDOW_HEIGHT,
             bg='#352314',

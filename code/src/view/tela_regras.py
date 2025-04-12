@@ -3,12 +3,11 @@ from PIL import Image, ImageTk
 
 class TelaRegras:
     def __init__(self, root: Tk, show_screen, destino_voltar="inicial"):
-        self.root = root
         self.show_screen = show_screen
         self.destino_voltar = destino_voltar  # Novo atributo
 
         # Frame principal
-        self.frame = Frame(self.root)
+        self.frame = Frame(root)
         self.frame.pack(expand=True, fill='both')
 
         # Canvas para todas as imagens

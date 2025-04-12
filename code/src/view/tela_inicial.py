@@ -4,14 +4,13 @@ from view.tela_regras import TelaRegras
 
 class TelaInicial:
     def __init__(self, root: Tk, show_screen):
-        self.root = root
         self.show_screen = show_screen  # Função para mudar de tela
-        self.root.title("Splendor")
-        self.root.geometry("1080x720")
-        self.root.resizable(False, False)
+        root.title("Splendor")
+        root.geometry("1080x720")
+        root.resizable(False, False)
 
         # Frame principal
-        self.frame = Frame(self.root)
+        self.frame = Frame(root)
         self.frame.pack(expand=True, fill='both')
 
         # Canvas para todas as imagens
@@ -156,7 +155,7 @@ class TelaInicial:
 
     def button_click_animation(self, tag: str) -> None:
         self.canvas.move(tag, 0, 5)
-        self.root.after(100, lambda: self.canvas.move(tag, 0, -5))
+        root.after(100, lambda: self.canvas.move(tag, 0, -5))
 
     def iniciarJogo(self, event=None) -> None:
         self.show_screen("jogo")
@@ -170,4 +169,4 @@ class TelaInicial:
 
     def sair(self) -> None:
         print("Saindo do jogo...")
-        self.root.quit()
+        root.quit()
