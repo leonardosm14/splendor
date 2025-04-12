@@ -2,9 +2,10 @@ from tkinter import *
 from PIL import Image, ImageTk
 
 class TelaRegras:
-    def __init__(self, root: Tk, show_screen):
+    def __init__(self, root: Tk, show_screen, destino_voltar="inicial"):
         self.root = root
-        self.show_screen = show_screen  # Save the show_screen function
+        self.show_screen = show_screen
+        self.destino_voltar = destino_voltar  # Novo atributo
 
         # Frame principal
         self.frame = Frame(self.root)
@@ -16,63 +17,66 @@ class TelaRegras:
             width=1080,
             height=720,
             highlightthickness=0,
-            bg='#352314'  # New background color
+            bg='#352314'
         )
         self.canvas.pack()
 
         # Título
         self.canvas.create_text(
-            540,  # x = width/2
-            100,  # y position for title
+            540, 100,
             text="Regras do Jogo",
             fill="white",
-            font=('Aclonica-Regular', 36, 'bold')
+            font=('Aclonica', 36, 'bold')
         )
 
         # Texto das regras
         texto_regras = (
-            "O jogo segue um formato baseado em turnos, com os jogadores "
-            "realizando uma de quatro ações em seu turno:\n\n"
-            "• Pegar três fichas de gema de cores diferentes\n\n"
-            "• Pegar duas fichas de gema da mesma cor\n  (se houver pelo menos "
-            "quatro fichas disponíveis)\n\n"
-            "• Reservar uma carta de desenvolvimento e pegar uma ficha de ouro\n\n"
-            "• Comprar uma carta de desenvolvimento virada para cima do centro\n  "
-            "da mesa ou de uma previamente reservada\n\n"
-            "Os jogadores devem gerenciar sua contagem de fichas, devolvendo\n"
-            "as fichas excedentes para manter um máximo de dez."
+            "Quem inicia a partida é sorteado de forma aleatória. A cada turno, cada jogador pode escolher apenas uma das seguintes ações:\n\n"
+            "• Comprar três pedras diferentes\n"
+            "• Comprar duas pedras iguais\n"
+            "• Reservar 1 das cartas da mesa e, se ainda houver ouro disponível, comprar um\n"
+            "• Comprar uma das cartas dispostas na mesa se tiver pedras o suficiente e retirar outra do baralho para pôr no lugar.\n"
+            "  Se for uma carta de roubo, o jogador fica com ela pra si e retira outra carta\n"
+            "• Fazer uma oferta de troca de pedras ao outro jogador. Se ele recusar, escolher outra ação (pode ser outra oferta)\n"
+            "• Usar uma carta de roubo, se tiver, para roubar as pedras descritas na carta do outro jogador.\n"
+            "  Se o jogador roubado não tiver todas as pedras, apenas as que ele tiver serão roubadas.\n"
+            "  Se ele não tiver nenhuma, o roubo não pode ser feito.\n\n"
+            "Encerramento da Partida:\n"
+            "A partida é encerrada quando um dos jogadores atingir 15 ou mais pontos.\n"
+            "O adversário daquele que alcançou os 15 pontos ainda tem direito a mais uma jogada final\n"
+            "de compra de carta na tentativa de ultrapassá-lo. Ganha aquele que tiver mais pontos."
         )
 
         self.canvas.create_text(
-            540,  # x = width/2
-            360,  # y = height/2
+            540, 400,
             text=texto_regras,
             fill="white",
-            font=('Aclonica-Regular', 14),
+            font=('Aclonica', 14),
             justify="center",
             width=800
         )
 
-        # Botão Voltar (modified)
-        self.canvas.create_text(
-            50, 30,
-            text="Voltar",
-            fill="white",
-            font=('Aclonica-Regular', 14),
+        # Imagem do botão "Voltar"
+        self.botao_voltar_img = Image.open("resources/botões/botao-voltar.png")
+        self.botao_voltar_img = self.botao_voltar_img.resize((150, 70))
+        self.botao_voltar_tk = ImageTk.PhotoImage(self.botao_voltar_img)
+
+        # Colocar imagem no canvas como botão
+        self.botao_voltar = self.canvas.create_image(
+            100, 50,
+            image=self.botao_voltar_tk,
+            anchor="center",
             tags="voltar"
         )
 
-        # Bind events (modified)
+        # Bind eventos para o botão
         self.canvas.tag_bind("voltar", "<Button-1>", lambda e: self.voltar())
-        self.canvas.tag_bind("voltar", "<Enter>", 
-            lambda e: self.canvas.config(cursor="hand2"))
-        self.canvas.tag_bind("voltar", "<Leave>", 
-            lambda e: self.canvas.config(cursor=""))
+        self.canvas.tag_bind("voltar", "<Enter>", lambda e: self.canvas.config(cursor="hand2"))
+        self.canvas.tag_bind("voltar", "<Leave>", lambda e: self.canvas.config(cursor=""))
 
     def voltar(self):
-        """Handle return to initial screen"""
-        print("Returning to initial screen...")  # Debug print
+        print(f"Returning to screen: {self.destino_voltar}")
         if self.show_screen:
-            self.show_screen("inicial")
+            self.show_screen(self.destino_voltar)
         else:
             print("Error: show_screen not properly initialized")

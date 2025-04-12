@@ -171,9 +171,3 @@ class TelaInicial:
     def sair(self) -> None:
         print("Saindo do jogo...")
         self.root.quit()
-
-
-if __name__ == "__main__":
-    root = Tk()
-    app = TelaInicial(root, lambda screen: print(f"Switching to {screen} screen"))
-    root.mainloop()

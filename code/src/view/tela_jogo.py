@@ -46,23 +46,20 @@ class TelaJogo:
         self.DECK_TO_CARDS_GAP = 20  # Gap between deck and first card
         self.VERTICAL_GAP = 50  # Gap between rows
 
-        # Calculate center position for the game grid
         total_cards_width = (self.CARD_WIDTH * 4) + (self.HORIZONTAL_GAP * 3)
         total_width_with_deck = total_cards_width + self.CARD_WIDTH + self.DECK_TO_CARDS_GAP
         
-        # Center everything
         self.START_X = 230
         self.START_Y = 100
         
-        # Position gems and buttons closer together
         self.GEMS_X = self.START_X + total_width_with_deck + 30  # Closer to cards
         self.BUTTONS_X = self.GEMS_X + 100  # Closer to gems
         
-        # Player info constants
+        # Player info
         self.PLAYER_INFO_WIDTH = 200
         self.PLAYER_INFO_X = 50
 
-        # Create the main canvas
+        # main canvas
         self.canvas = Canvas(
             self.root,
             width=self.WINDOW_WIDTH,
@@ -72,18 +69,19 @@ class TelaJogo:
         )
         self.canvas.pack(expand=True, fill='both')
 
-        # Load and display all elements
         self.load_all_images()
+        self.create_settings_button()
         self.display_player_info()
         self.create_decks_and_cards()
         self.create_gem_piles()
         self.create_action_buttons()
 
     def load_all_images(self):
-        """Load all game images"""
         self.images = {}
+
+        settings_icon = Image.open("resources/settings.png").resize((60, 60))
+        self.images["settings"] = ImageTk.PhotoImage(settings_icon)
         
-        # Load deck back images
         for nivel in range(1, 4):
             try:
                 deck_img = Image.open(f"resources/cartas/cartasNiveis/nivel{nivel}.png").resize((self.CARD_WIDTH, self.CARD_HEIGHT))
@@ -91,11 +89,10 @@ class TelaJogo:
             except FileNotFoundError as e:
                 print(f"Deck image not found: {e}")
 
-        # Load button images with increased height
         try:
             BUTTON_WIDTH = 150
             BUTTON_HEIGHT = 100
-            BUTTON_SPACING = 15  # Define spacing between buttons
+            BUTTON_SPACING = 15
 
             self.botao_reservar = Image.open("resources/botões/reservar-carta.png").resize((BUTTON_WIDTH, BUTTON_HEIGHT))
             self.botao_reservar = ImageTk.PhotoImage(self.botao_reservar)
@@ -103,11 +100,25 @@ class TelaJogo:
             self.botao_comprar_pedras = ImageTk.PhotoImage(self.botao_comprar_pedras)
             self.botao_comprar_carta = Image.open("resources/botões/comprar-carta.png").resize((BUTTON_WIDTH, BUTTON_HEIGHT))
             self.botao_comprar_carta = ImageTk.PhotoImage(self.botao_comprar_carta)
-            self.botao_trocar_carta = Image.open("resources/botões/trocar-carta.png").resize((BUTTON_WIDTH, BUTTON_HEIGHT))
-            self.botao_trocar_carta = ImageTk.PhotoImage(self.botao_trocar_carta)
+            self.botao_trocar_pedra = Image.open("resources/botões/trocar-pedra.png").resize((BUTTON_WIDTH, BUTTON_HEIGHT))
+            self.botao_trocar_pedra = ImageTk.PhotoImage(self.botao_trocar_pedra)
             
         except FileNotFoundError as e:
             print(f"Button image not found: {e}")
+    
+    def create_settings_button(self):
+        x = 980
+        y = 15
+
+        self.canvas.create_image(
+            x,
+            y,
+            image=self.images["settings"],
+            anchor='nw',
+            tags="settings_icon"
+        )
+        self.canvas.tag_bind("settings_icon", "<Button-1>", self.open_settings_popup)
+
 
     def create_decks_and_cards(self):
         """Create decks and their visible cards"""
@@ -125,14 +136,12 @@ class TelaJogo:
                 anchor='nw'
             )
 
-            # Draw visible cards with adjusted spacing
             for j in range(4):
                 x_card = (deck_x + self.CARD_WIDTH + self.DECK_TO_CARDS_GAP + 
                          (j * (self.CARD_WIDTH + self.HORIZONTAL_GAP)))
                 self.display_card(x_card, y_pos, nivel, j + 1 + i*4)
 
     def display_card(self, x, y, nivel, card_id):
-        """Display a single card"""
         filename = "diamante-5-rubi-3-esmeralda-2.png"
         try:
             imagem_carta = Image.open(f"resources/cartas/{filename}").resize((self.CARD_WIDTH, self.CARD_HEIGHT))
@@ -142,14 +151,11 @@ class TelaJogo:
             print(f"Card image not found: {filename}")
 
     def create_gem_piles(self, start_x=None):
-        """Create vertically aligned gem piles"""
-        GEM_SIZE = 50  # Increased gem size
-        GEM_VERTICAL_GAP = 60  # Increased vertical gap for larger gems
+        GEM_SIZE = 50 
+        GEM_VERTICAL_GAP = 60  
         
-        # Use provided start_x or default to self.GEMS_X
         start_x = 830
         
-        # Calculate total height of all gems
         total_gems_height = len(PedrasEnum) * (GEM_SIZE + GEM_VERTICAL_GAP)
         gems_start_y = 170  # Center vertically
 
@@ -159,7 +165,6 @@ class TelaJogo:
             self.create_gem_pile(start_x, y_pos, pedra, GEM_SIZE)
 
     def create_gem_pile(self, x, y, pedra: Pedra, gem_size: int):
-        """Create a single gem pile with stack effect"""
         nome_arquivo = pedra.get_nome_arquivo()
         try:
             imagem = Image.open(f"resources/pedras/{nome_arquivo}.png").resize((gem_size, gem_size))
@@ -186,52 +191,65 @@ class TelaJogo:
             print(f"Gem image not found: {nome_arquivo}")
 
     def create_action_buttons(self):
-        """Create action buttons vertically aligned"""
         buttons = [
             (self.botao_reservar, self.reservar_carta),
             (self.botao_comprar_pedras, self.comprar_pedras),
             (self.botao_comprar_carta, self.comprar_carta),
-            (self.botao_trocar_carta, self.trocar_carta)
+            (self.botao_trocar_pedra, self.trocar_pedra)
         ]
 
         BUTTON_WIDTH = 150
         BUTTON_HEIGHT = 100
-        BUTTON_SPACING = 5  # Reduced spacing between buttons
+        BUTTON_SPACING = 5
         
-        # Calculate total height of all buttons including spacing
         total_buttons_height = (len(buttons) * BUTTON_HEIGHT) + ((len(buttons) - 1) * BUTTON_SPACING)
         
-        # Center buttons vertically in the window
         button_start_y = 150
-        
-        # Position buttons on the right side of the window
-        button_x = 900  # 50px margin from right edge
+        button_x = 900
+
+        self.button_ids = {}  # Guarda as IDs das imagens dos botões
 
         for i, (image, command) in enumerate(buttons):
             y_pos = button_start_y + (i * (BUTTON_HEIGHT + BUTTON_SPACING))
-            self.canvas.create_image(
+            tag = f"button_{i}"
+            
+            # Cria o botão no canvas
+            image_id = self.canvas.create_image(
                 button_x,
                 y_pos,
                 image=image,
                 anchor='nw',
-                tags=f"button_{i}"
+                tags=tag
             )
-            self.canvas.tag_bind(f"button_{i}", '<Button-1>', lambda e, cmd=command: cmd())
+            self.button_ids[tag] = (image_id, button_x, y_pos)
+
+            # Pressionar: move o botão um pouco pra baixo
+            self.canvas.tag_bind(tag, '<ButtonPress-1>', lambda e, t=tag: self.down_botton(t))
+
+            # Soltar: volta à posição original e executa o comando
+            self.canvas.tag_bind(tag, '<ButtonRelease-1>', lambda e, t=tag, cmd=command: self.up_botton(t, cmd))
+    
+    def down_botton(self, tag):
+        image_id, x, y = self.button_ids[tag]
+        self.canvas.coords(image_id, x, y + 3)  # move 3px pra baixo
+
+    def up_botton(self, tag, command):
+        image_id, x, y = self.button_ids[tag]
+        self.canvas.coords(image_id, x, y)  # volta à posição original
+        command()  # executa a função
+
 
     def display_player_info(self):
         """Display player information with shadows and turn indicators"""
-        fonte_nome = ("Aclonica-Regular", 16, "bold")
-        fonte_pontos = ("Aclonica-Regular", 12)
+        fonte_nome = ("Aclonica", 16, "bold")
+        fonte_pontos = ("Aclonica", 12)
         GEM_SIZE = 25
         GEM_GAP = 8
 
-        # Shadow dimensions
-        SHADOW_WIDTH = 250  # Unified width for all shadows
-        SHADOW_HEIGHT = 150  # Unified height for all shadows
+        SHADOW_WIDTH = 250
+        SHADOW_HEIGHT = 150
 
-        # Load and resize shadow images
         try:
-            # Resize all shadows to the same dimensions
             sombra_sup = Image.open("resources/sombra_superior_esquerda.png").resize((SHADOW_WIDTH, SHADOW_HEIGHT))
             self.sombra_superior = ImageTk.PhotoImage(sombra_sup)
 
@@ -241,7 +259,6 @@ class TelaJogo:
             sombra_central = Image.open("resources/sombra_canto_central.png").resize((SHADOW_WIDTH, SHADOW_HEIGHT+50))
             self.sombra_central = ImageTk.PhotoImage(sombra_central)
 
-            # Load "É sua vez" and "Finalizar rodada" buttons with the same dimensions as other buttons
             BUTTON_WIDTH = 150
             BUTTON_HEIGHT = 80
             self.img_eh_sua_vez = ImageTk.PhotoImage(
@@ -254,7 +271,6 @@ class TelaJogo:
             print(f"Error loading UI images: {e}")
             return
 
-        # Draw shadows aligned to the left edges
         # Top-left shadow
         self.canvas.create_image(-6, -5, image=self.sombra_superior, anchor='nw')
 
@@ -339,8 +355,6 @@ class TelaJogo:
             anchor='center'
         )
 
-
-        # Turn indicator and buttons in center-left
         center_x = SHADOW_WIDTH // 2  # Alinhado com a sombra central
         center_y = self.WINDOW_HEIGHT // 2
 
@@ -351,7 +365,7 @@ class TelaJogo:
             center_y - 190,  # Posicionado logo abaixo do indicador "É sua vez"
             text=f"Rodada {rodada_atual}",
             fill="white",
-            font="Aclonica-Regular",
+            font="Aclonica",
             anchor='center'
         )
 
@@ -382,8 +396,72 @@ class TelaJogo:
     def comprar_carta(self):
         print("Comprar carta clicado")
 
-    def trocar_carta(self):
-        print("Trocar carta clicado")
+    def trocar_pedra(self):
+        print("Trocar pedra clicado")
 
     def finalizar_rodada(self):
         print("Finalizando rodada...")
+
+    def open_settings_popup(self, event=None):
+        # Limpa o canvas (remove tudo)
+        self.canvas.delete("all")
+
+        # Carrega os botões da tela de configurações
+        try:
+            self.images["regras"] = ImageTk.PhotoImage(
+                Image.open("resources/botões/regras.png").resize((250, 90))
+            )
+            self.images["creditos"] = ImageTk.PhotoImage(
+                Image.open("resources/botões/creditos.png").resize((250, 90))
+            )
+            self.images["sair"] = ImageTk.PhotoImage(
+                Image.open("resources/botões/sair.png").resize((250, 90))
+            )
+
+        except FileNotFoundError as e:
+            print(f"Erro ao carregar imagem de botão: {e}")
+            return
+
+        # Define as posições dos botões centralizados
+        center_x = 400
+        start_y = 200
+        gap_y = 120
+
+        self.canvas.create_image(center_x, start_y, image=self.images["regras"], anchor='nw', tags="btn_regras")
+        self.canvas.create_image(center_x, start_y + gap_y, image=self.images["creditos"], anchor='nw', tags="btn_creditos")
+        self.canvas.create_image(center_x, start_y + 2 * gap_y, image=self.images["sair"], anchor='nw', tags="btn_deixar")
+
+        # Associações de clique
+        self.canvas.tag_bind("btn_regras", "<Button-1>", self.mostrar_regras)
+        self.canvas.tag_bind("btn_creditos", "<Button-1>", self.mostrar_creditos)
+        self.canvas.tag_bind("btn_deixar", "<Button-1>", self.sair)
+
+        # Botão de voltar
+        self.images["voltar"] = ImageTk.PhotoImage(
+            Image.open("resources/botões/botao-voltar.png").resize((100, 50))
+        )
+        self.canvas.create_image(30, 30, image=self.images["voltar"], anchor='nw', tags="btn_voltar")
+        self.canvas.tag_bind("btn_voltar", "<Button-1>", self.recarregar_tela_jogo)
+
+    def mostrar_regras(self, event=None):
+        if self.show_screen:
+            self.show_screen("regras")
+
+    def mostrar_creditos(self, event=None):
+        if self.show_screen:
+            self.show_screen("creditos")
+
+    def sair(self, event=None):
+        print("Jogador saiu da partida.")
+        if self.show_screen:
+            self.show_screen("inicial")
+
+    def recarregar_tela_jogo(self, event=None):
+        # Recria o canvas com os elementos originais
+        self.canvas.delete("all")
+        self.load_all_images()
+        self.create_settings_button()
+        self.display_player_info()
+        self.create_decks_and_cards()
+        self.create_gem_piles()
+        self.create_action_buttons()
