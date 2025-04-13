@@ -26,7 +26,7 @@ class Tabuleiro:
         self.jogadorRemoto = jogadorRemoto
         self.rodada = 1
     
-    def gerar_pedras_iniciais(self) -> list[Pedra]:
+    def gerar_pedras_iniciais(self):
         pedras = {}
         for tipo in PedrasEnum:
             if tipo == PedrasEnum.OURO:
