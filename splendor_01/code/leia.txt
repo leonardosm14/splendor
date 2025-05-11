@@ -1,7 +1,0 @@
-Para executar o jogo, é necessário ter o Python instalado em sua máquina. Tendo instalado, pode-se seguir os passos:
-
-1) Abra a pasta "code" no terminal e execute o comando: python3 -m venv venv
-2) Ative o ambiente virtual, executando o comando: source venv/bin/activate
-3) Instale as dependências do jogo, executando o comando: pip3 install -r requirements.txt
-4) Entre na pasta src para executar o arquivo principal do jogo: cd src
-5) Execute o jogo, com o comando: python3 main.py

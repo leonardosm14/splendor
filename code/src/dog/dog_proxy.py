@@ -26,7 +26,7 @@ class DogProxy:
         if self.player_name == "":
             self.player_name = "player" + str(self.player_id)
         try:
-            config_file = open("src/config/game.id", "r")
+            config_file = open("config/game.id", "r")
             self.game_id = config_file.read()
         except FileNotFoundError:
             self.status = 0
@@ -48,7 +48,6 @@ class DogProxy:
 
     def generate_player_id(self):
         from time import time
-
         milliseconds = int(time() * 1000)
         an_id = str(milliseconds - 1639872000000)
         return an_id
