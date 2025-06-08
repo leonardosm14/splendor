@@ -10,109 +10,66 @@ class Jogador:
             pontuacao: int,
             jogadorEmTurno: bool,
             jogadorVenceu: bool,
+            jogadorEmpatou: bool,
             cartasEmMao: List[Carta],
-            pedrasEmMao: Dict[Pedra, int]):
+            pedrasEmMao: Dict[Pedra, int],
+            cartasReservdas: List[Carta]):
         self.nome = nome
         self.pontuacao = pontuacao
         self.jogadorEmTurno = jogadorEmTurno
         self.jogadorVenceu = jogadorVenceu
+        self.jogadorEmpatou = jogadorEmpatou
         self.cartasEmMao = cartasEmMao
         self.pedrasEmMao = pedrasEmMao
+        self.cartasReservadas = cartasReservdas
     
-    # getters
-    def getNome(self) -> str:
-        return self.nome
-    
-    def getPontuacao(self) -> int:
-        return self.pontuacao
-    
-    def getJogadorEmTurno(self) -> bool:
-        return self.jogadorEmTurno
-    
-    def getJogadorVenceu(self) -> bool:
-        return self.jogadorVenceu
-    
-    def getCartasEmMao(self) -> List[Carta]:
-        return self.cartasEmMao
-    
-    def getPedrasEmMao(self) -> Dict[Pedra, int]:
+    def pegarPedras(self) -> Dict[Pedra, int]:
         return self.pedrasEmMao
     
-    # setters
-    def setNome(self, nome: str) -> None:
-        self.nome = nome
+    def pegarPontuacaoJogador(self) -> int:
+        return self.pontuacao
 
-    def setPontuacao(self, pontuacao: int) -> None:
-        self.pontuacao = pontuacao
-
-    def setJogadorEmTurno(self, jogadorEmTurno: bool) -> None:
-        self.jogadorEmTurno = jogadorEmTurno
-
-    def setJogadorVenceu(self, jogadorVenceu: bool) -> None:
-        self.jogadorVenceu = jogadorVenceu
-
-    def setCartasEmMao(self, cartasEmMao: List[Carta]) -> None:
-        self.cartasEmMao = cartasEmMao
-
-    def setPedrasEmMao(self, pedrasEmMao: Dict[Pedra, int]) -> None:
-        self.pedrasEmMao = pedrasEmMao
-    
-    # Operações com cartas
-
-    # adicionar cartas
-    def adicionarCarta(self, carta: Carta) -> None:
+    def adicionarCartaNaMao(self, carta: Carta):
         self.cartasEmMao.append(carta)
-        self.pontuacao += carta.pontos
-        pedrasDaCarta: List[Pedra] = carta.getPedras()
-        for pedra in pedrasDaCarta:
-            self.adicionarPedra(pedra=pedra)
-        
-    # remover cartas
-    def removerCarta(self, carta: Carta) -> None:
-        if carta in self.cartasEmMao:
-            self.cartasEmMao.remove(carta)
-        else:
-            raise Exception("Carta não encontrada na mão do jogador")
     
-    def getQuantidadeCartas(self) -> int:
-        return len(self.cartasEmMao)
-    
-    # Operações com pedras
+    def pegarCartas(self) -> List[Carta]:
+        return self.cartasEmMao
 
-    # adicionar pedras
-    def adicionarPedra(self, pedra: Pedra) -> None:
-        if pedra in self.pedrasEmMao:
-            self.pedrasEmMao[pedra] += 1
-        else:
-            self.pedrasEmMao[pedra] = 1
+    def atualizarPontuacaoJogador(self, pontosCarta: int):
+        self.pontuacao += pontosCarta
     
-    # remover pedras
-    def removerPedra(self, pedra: Pedra) -> None:
-        if pedra in self.pedrasEmMao:
-            if self.pedrasEmMao[pedra] > 1:
-                self.pedrasEmMao[pedra] -= 1
-            else:
-                self.pedrasEmMao[pedra] = 0
-        else:
-            raise Exception("Pedra não encontrada na mão do jogador")
+    def removerPedraDaMao(self, pedra: Pedra):
+        self.pedrasEmMao[pedra] -= 1
     
-    def getQuantidadeDeEsmeraldas(self) -> int:
-        return self.pedrasEmMao.get(PedrasEnum.ESMERALDA, 0)
+    def adicionarPedraNaMao(self, pedra: Pedra):
+        self.pedrasEmMao[pedra] += 1
     
-    def getQuantidadeDeDiamantes(self) -> int:
-        return self.pedrasEmMao.get(PedrasEnum.DIAMANTE, 0)
+    def habilitarJogador(self):
+        self.jogadorEmTurno = True
     
-    def getQuantidadeDeRubis(self) -> int:
-        return self.pedrasEmMao.get(PedrasEnum.RUBI, 0)
+    def desabilitarJogador(self):
+        self.jogadorEmTurno = False
     
-    def getQuantidadeDeSafiras(self) -> int:
-        return self.pedrasEmMao.get(PedrasEnum.SAFIRA, 0)
+    def adicionarCartaNaReserva(self, carta: Carta):
+        self.cartasReservadas.append(carta)
     
-    def getQuantidadeDeOnix(self) -> int:
-        return self.pedrasEmMao.get(PedrasEnum.ONIX, 0)
-    
-    def getQuantidadeDeOuro(self) -> int:
-        return self.pedrasEmMao.get(PedrasEnum.OURO, 0)
+    def pegarNome(self) -> str:
+        return self.nome
 
-    def getQuantidadeDePedras(self) -> int:
-        return sum(self.pedrasEmMao.values())
+    def verificarSeTemCartaRoubo(self) -> bool:
+        for carta in self.cartasEmMao:
+            if carta.verificarSeCartaDeRoubo():
+                return True
+        return False
+    
+    def possuiPedra(self, pedra: Pedra) -> bool:
+        return (self.pedrasEmMao[pedra] != 0)
+    
+    def verificaSeEstaReservada(self, carta: Carta) -> bool:
+        return (carta in self.cartasReservadas)
+
+    def jogadorVenceu(self):
+        self.jogadorVenceu = True
+    
+    def jogadorEmpatou(self):
+        self.jogadorEmpatou = True
