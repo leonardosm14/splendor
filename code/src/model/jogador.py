@@ -7,21 +7,15 @@ class Jogador:
     def __init__(
             self,
             nome: str,
-            pontuacao: int,
-            jogadorEmTurno: bool,
-            jogadorVenceu: bool,
-            jogadorEmpatou: bool,
-            cartasEmMao: List[Carta],
-            pedrasEmMao: Dict[Pedra, int],
-            cartasReservdas: List[Carta]):
+            jogadorEmTurno: bool):
         self.nome = nome
-        self.pontuacao = pontuacao
+        self.pontuacao = 0
         self.jogadorEmTurno = jogadorEmTurno
-        self.jogadorVenceu = jogadorVenceu
-        self.jogadorEmpatou = jogadorEmpatou
-        self.cartasEmMao = cartasEmMao
-        self.pedrasEmMao = pedrasEmMao
-        self.cartasReservadas = cartasReservdas
+        self.jogadorVenceu = False
+        self.jogadorEmpatou = False
+        self.cartasEmMao = list()
+        self.pedrasEmMao = dict()
+        self.cartasReservadas = list()
     
     def pegarPedras(self) -> Dict[Pedra, int]:
         return self.pedrasEmMao

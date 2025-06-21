@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Tuple
-
+import random
 from .jogador import Jogador
 from .pedra import Pedra
 from .baralho import Baralho
@@ -17,6 +17,9 @@ class Tabuleiro:
         self.rodada = 0
         self.partidaEmAndamento = False
         self.ultimaPartida = False
+
+        #Novos
+        self.todasCartas = list()
     
     def verificarPedrasSuficientes(self, carta: Carta) -> bool:
         """Verifica se o jogador local tem pedras suficientes para comprar uma carta"""
@@ -28,6 +31,25 @@ class Tabuleiro:
             for pedra in pedrasCarta
         )
     
+    def instanciarCartas(self,
+                         id: int,
+                        pontos: int,
+                        nivel: NiveisEnum,
+                        pedras: Dict[PedrasEnum, int],
+                        cartaDeRoubo: bool,
+                        bonus: PedrasEnum | None,
+                        habilitada: bool ):
+        
+        carta = Carta(id = id,
+                      pontos = pontos,
+                      nivel=nivel,
+                      pedras=pedras,
+                      cartaDeRoubo=cartaDeRoubo,
+                      bonus=bonus,
+                      habilitada=habilitada)
+        
+        self.todasCarta.append(carta)
+
     def ehUltimaPartida(self) -> bool:
         return self.ultimaPartida
     

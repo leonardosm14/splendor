@@ -68,14 +68,13 @@ class TelaInicial:
         )
 
         # Box dimensions (reduced sizes)
-        BOX_WIDTH = 267  # Reduced by half (534/2)
-        BOX_HEIGHT = 272  # Reduced by half (545/2)
-        BUTTON_WIDTH = 207  # Reduced by half (414/2)
-        BUTTON_HEIGHT = 65  # New button height
-        BUTTON_SPACING = 15  # Reduced by half (30/2)
+        BOX_WIDTH = 267
+        BOX_HEIGHT = 272
+        BUTTON_WIDTH = 207
+        BUTTON_HEIGHT = 65
+        BUTTON_SPACING = 15
 
-        # Calculate vertical center of the screen (excluding logo area)
-        LOGO_BOTTOM = 150 + 50  # Approximate bottom of logo (logo y + half height)
+        LOGO_BOTTOM = 150 + 50
         SCREEN_HEIGHT = 720
         available_space = SCREEN_HEIGHT - LOGO_BOTTOM
         
@@ -161,8 +160,8 @@ class TelaInicial:
         self.show_screen("jogo")
 
     def mostrarRegras(self, event=None) -> None:
-        print("Showing rules screen...")  # Debug print
-        self.show_screen("regras")  # Use the screen management system
+        print("Showing rules screen...")
+        self.show_screen("regras")
 
     def mostrarCreditos(self, event=None) -> None:
         self.show_screen("creditos")

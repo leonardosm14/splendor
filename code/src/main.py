@@ -2,6 +2,8 @@ from tkinter import *
 from tkinter import font as TkFont
 from tkinter import simpledialog
 from tkinter import messagebox
+from model.jogador import Jogador
+from model.tabuleiro import Tabuleiro
 from view.tela_inicial import TelaInicial
 from view.tela_jogo import TelaJogo
 from view.tela_regras import TelaRegras
@@ -13,15 +15,12 @@ from tkinter import PhotoImage
 
 class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
     def __init__(self):
-        # super().__init__()
-        
+
         self.root = Tk()
         self.root.title("Splendor")
         self.root.geometry("1742x926")
         self.root.resizable(False, False)
         self.background_image = PhotoImage(file="resources/background-inicio.png")
-        self.background_label = Label(self.root, image=self.background_image)
-        self.background_label.place(relwidth=1, relheight=1)
 
         TkFont.Font(root=self.root, name="Aclonica", family="Aclonica")
         self.default_font = ('Aclonica', 14)
@@ -29,6 +28,8 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
 
         self.current_screen = None
         self.partida_em_andamento = False
+        self.jogador_local = None
+        self.jogador_remoto = None
 
         self.show_screen("inicial")
 
@@ -47,8 +48,8 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
         elif screen_name == "jogo":
             if not self.partida_em_andamento:
                 self.partida_em_andamento = True
-                self.start_match(num_players=2)  # Inicia a lógica de sincronização
-            self.current_screen = TelaJogo(self.root, self.show_screen)
+                jogadores = self.start_match(num_players=2)  # Inicia a lógica de sincronização
+            self.current_screen = TelaJogo(self.root, self.show_screen, self.local_player, self.remote_player)
         elif screen_name == "regras":
             destino_voltar = "jogo" if self.partida_em_andamento else "inicial"
             self.current_screen = TelaRegras(self.root, self.show_screen, destino_voltar)
@@ -57,9 +58,9 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
             self.current_screen = TelaCreditos(self.root, self.show_screen, destino_voltar)
 
     def run(self):
-        player_name = simpledialog.askstring("Nome do Jogador", "Digite seu nome:")
+        self.player_name = simpledialog.askstring("Nome do Jogador", "Digite seu nome:")
         self.dog_server_interface = DogActor()
-        message = self.dog_server_interface.initialize(player_name, self)
+        message = self.dog_server_interface.initialize(self.player_name, self)
         
         if message == "Você está sem conexão":
             messagebox.showerror("Erro", message)
@@ -80,6 +81,17 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
 
     def receive_withdrawal_notification(self):
         print("receive_withdrawal_notification chamado")
+
+    def create_players_instances(self, start_status):
+        players = start_status.get_players()
+        local_id = start_status.get_local_id()
+        for player in players:
+            name, id, order = player[0], player[1], player[2]
+            if id == local_id:
+                self.jogador_local = Jogador(nome=name, order=order)
+            else:
+                self.jogador_remoto = Jogador(nome=name, order=order)
+
     
     def start_match(self, num_players):
         # Solicita ao servidor para verificar o estado dos jogadores
@@ -89,9 +101,10 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
 
         if len(players) == num_players:  # Verifica se o número de jogadores conectados é suficiente
             messagebox.showinfo(message="Todos os jogadores estão prontos! Iniciando o jogo...")
+            self.create_players_instances(start_status=start_status)
             self.show_screen("jogo")  # Transfere para a tela do jogo
         else:
-            messagebox.showinfo(message=f"Aguardando outros jogadores... ({len(players)+1}/{num_players})")
+            messagebox.showinfo(message=f"Aguardando outros jogadores... (1/{num_players})")
 
 if __name__ == "__main__":
     app = PlayerInterface()
