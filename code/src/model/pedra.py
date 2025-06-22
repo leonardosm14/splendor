@@ -8,6 +8,9 @@ class Pedra:
     """ Verifica se duas pedras são iguais, comparando o tipo."""
     def verificarIgualdadePedras(self, other: "Pedra") -> bool:
         return self.tipo == other.tipo
+
+    def pegarTipo(self) -> PedrasEnum:
+        return self.tipo
     
     def habilitarPedra(self):
         self.habilitada = True

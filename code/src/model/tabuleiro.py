@@ -69,13 +69,6 @@ class Tabuleiro:
             for pedra in PedrasEnum
         }
     
-    def reposicionarCartasSeNecessario(self):
-        """Repõe cartas visíveis se necessário após uma compra"""
-        for i, carta in enumerate(self.cartasNoTabuleiro):
-            if carta is None:
-                nivel = i // 4 + 1  # Determina o nível baseado na posição
-                self.cartasNoTabuleiro[i] = self.baralhos[nivel-1].pegarCartaDoBaralho()
-    
     def pegarCartaDoTabuleiro(self, indiceCarta: int) -> Tuple[Optional[Carta], bool]:
         """
         Tenta pegar uma carta do tabuleiro.
@@ -156,7 +149,6 @@ class Tabuleiro:
         self.partidaEmAndamento = True
         self.ultimaPartida = False
     
-    # Mantendo os métodos originais com melhorias internas
     def pegarNomeJogador(self) -> str:
         return self.jogadorLocal.pegarNome()
     
@@ -170,7 +162,7 @@ class Tabuleiro:
         return [carta for carta in self.jogadorLocal.pegarCartas() if carta.verificarSeCartaDeRoubo()]
     
     def verificarIgualdadePedras(self, pedraA: Pedra, pedraB: Pedra) -> bool:
-        return pedraA.tipo == pedraB.tipo
+        return pedraA.pegarTipo() == pedraB.pegarTipo()
     
     def verificarOuroDisponivel(self) -> bool:
         return self.pedrasNoTabuleiro[PedrasEnum.OURO] > 0
@@ -199,3 +191,7 @@ class Tabuleiro:
         for carta in self.cartasNoTabuleiro:
             if carta:
                 carta.desabilitarCarta()
+    
+    def habilitarPedrasTabuleiro(self):
+        for pedra in self.pedrasNoTabuleiro:
+            pedra.habilitarPedra()

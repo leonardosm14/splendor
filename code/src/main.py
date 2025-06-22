@@ -15,7 +15,6 @@ from tkinter import PhotoImage
 
 class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
     def __init__(self):
-
         self.root = Tk()
         self.root.title("Splendor")
         self.root.geometry("1742x926")
@@ -33,10 +32,14 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
 
         self.show_screen("inicial")
 
-    def clear_screen(self):
-        # Em vez de destruir os widgets, apenas os escondemos
-        for widget in self.root.winfo_children():
-            widget.pack_forget()  
+    def send_move(self):
+        """Envia o estado completo do tabuleiro para o jogador remoto ao finalizar o turno"""
+        try:
+            tabuleiro_atualizado = self.current_screen.pegarTabuleiro() # Método que retorna o estado completo do tabuleiro
+            self.dog_server_interface.send_move({"tabuleiro_atualizado": tabuleiro_atualizado})
+            messagebox.showinfo("Turno Finalizado", "Estado do tabuleiro enviado ao jogador remoto!")
+        except Exception as e:
+            print(f"Erro ao enviar estado do tabuleiro para o jogador remoto: {e}")
 
     def show_screen(self, screen_name: str):
         print(f"Changing to screen: {screen_name}")
@@ -48,8 +51,7 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
         elif screen_name == "jogo":
             if not self.partida_em_andamento:
                 self.partida_em_andamento = True
-                jogadores = self.start_match(num_players=2)  # Inicia a lógica de sincronização
-            self.current_screen = TelaJogo(self.root, self.show_screen, self.local_player, self.remote_player)
+            self.current_screen = TelaJogo(self.root, self.show_screen, self.jogador_local, self.jogador_remoto)
         elif screen_name == "regras":
             destino_voltar = "jogo" if self.partida_em_andamento else "inicial"
             self.current_screen = TelaRegras(self.root, self.show_screen, destino_voltar)
@@ -57,29 +59,23 @@ class PlayerInterface(DogPlayerInterface):  # herda da DogPlayerInterface
             destino_voltar = "jogo" if self.partida_em_andamento else "inicial"
             self.current_screen = TelaCreditos(self.root, self.show_screen, destino_voltar)
 
-    def run(self):
-        self.player_name = simpledialog.askstring("Nome do Jogador", "Digite seu nome:")
-        self.dog_server_interface = DogActor()
-        message = self.dog_server_interface.initialize(self.player_name, self)
-        
-        if message == "Você está sem conexão":
-            messagebox.showerror("Erro", message)
-            self.root.destroy()  # Fecha o jogo
-        else:
-            messagebox.showinfo(message=message, title="Dog Server")
-            self.root.mainloop()
-
     # Métodos obrigatórios da DogPlayerInterface
     def receive_start(self, start_status):
-        # Este método será chamado quando o servidor confirmar que todos os jogadores estão prontos
         message = start_status.get_message()
         messagebox.showinfo(message="Todos os jogadores estão prontos! Iniciando o jogo...")
         self.show_screen("jogo")  # Transfere para a tela do jogo
 
     def receive_move(self, a_move):
-        print("receive_move chamado com:", a_move)
+        """Recebe o movimento do jogador remoto e atualiza o tabuleiro"""
+        tabuleiro_atualizado = a_move.get("tabuleiro_atualizado", None)
+        if tabuleiro_atualizado:
+            self.current_screen.atualizarTabuleiro(tabuleiro_atualizado)
 
     def receive_withdrawal_notification(self):
+        try:
+            self.current_screen.notificarDesistencia()
+        except Exception as e:
+            print(f"Erro ao notificar desistência: {e}")
         print("receive_withdrawal_notification chamado")
 
     def create_players_instances(self, start_status):
