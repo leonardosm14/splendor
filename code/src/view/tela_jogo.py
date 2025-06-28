@@ -858,7 +858,9 @@ class TelaJogo:
                         self.canvas.itemconfig(f"carta_{nivel.name}_{idx}", image=img_tk)
 
     def desabilitarCartas(self):
-        """Desabilita todas as cartas no tabuleiro e aplica transparência apenas quando necessário"""
+        """Desabilita todas as cartas no tabuleiro e aplica transparência apenas quando necessário, sem nunca removê-las do canvas"""
+        if not hasattr(self, 'carta_imgs_transparentes'):
+            self.carta_imgs_transparentes = {}
         niveis = [NiveisEnum.NIVEL1, NiveisEnum.NIVEL2, NiveisEnum.NIVEL3]
         for nivel_idx, nivel in enumerate(niveis):
             for i in range(4):
@@ -869,40 +871,41 @@ class TelaJogo:
                     # Aplica transparência apenas se não for o turno do jogador
                     if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
                         # Aplica transparência à carta
+                        try:
+                            # Recarrega a imagem e aplica transparência
+                            diretorios_cartas = [
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-1"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-2"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-3"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-de-roubo"), True),
+                            ]
+                            for diretorio, is_roubo in diretorios_cartas:
+                                for carta_img in diretorio.glob("*.png"):
+                                    nome = carta_img.stem
+                                    id_carta, pontos, pedras, cartaDeRoubo, bonus, habilitada = self.extrair_dados_carta(carta_img, None, is_roubo)
+                                    if (carta.pontos == pontos and 
+                                        carta.pedras == pedras and 
+                                        carta.cartaDeRoubo == cartaDeRoubo and 
+                                        carta.bonus == bonus):
+                                        pil_img = Image.open(carta_img).resize((self.CARD_WIDTH * 10, self.CARD_HEIGHT * 10), Image.Resampling.LANCZOS).convert("RGBA")
+                                        alpha = pil_img.split()[3]
+                                        alpha = alpha.point(lambda p: int(p * 0.5))
+                                        pil_img.putalpha(alpha)
+                                        img_transp = ImageTk.PhotoImage(pil_img)
+                                        # GUARDA REFERÊNCIA
+                                        self.carta_imgs_transparentes[carta.id] = img_transp
+                                        self.canvas.itemconfig(f"carta_{nivel.name}_{idx}", image=img_transp)
+                                        break
+                                else:
+                                    continue
+                                break
+                        except Exception as e:
+                            print(f"Erro ao aplicar transparência na carta: {e}")
+                    else:
+                        # Se for o turno do jogador, garante que a imagem normal está sendo usada
                         img_tk = self.get_carta_img(carta)
                         if img_tk:
-                            try:
-                                # Recarrega a imagem e aplica transparência
-                                diretorios_cartas = [
-                                    (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-1"), False),
-                                    (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-2"), False),
-                                    (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-3"), False),
-                                    (Path("./resources/cartas/cartas-tabuleiro/cartas-de-roubo"), True),
-                                ]
-                                
-                                for diretorio, is_roubo in diretorios_cartas:
-                                    for carta_img in diretorio.glob("*.png"):
-                                        nome = carta_img.stem
-                                        id_carta, pontos, pedras, cartaDeRoubo, bonus, habilitada = self.extrair_dados_carta(carta_img, None, is_roubo)
-                                        
-                                        if (carta.pontos == pontos and 
-                                            carta.pedras == pedras and 
-                                            carta.cartaDeRoubo == cartaDeRoubo and 
-                                            carta.bonus == bonus):
-                                            
-                                            pil_img = Image.open(carta_img).resize((self.CARD_WIDTH * 10, self.CARD_HEIGHT * 10), Image.Resampling.LANCZOS).convert("RGBA")
-                                            alpha = pil_img.split()[3]
-                                            alpha = alpha.point(lambda p: int(p * 0.5))
-                                            pil_img.putalpha(alpha)
-                                            img_transp = ImageTk.PhotoImage(pil_img)
-                                            self.canvas.itemconfig(f"carta_{nivel.name}_{idx}", image=img_transp)
-                                            break
-                                    else:
-                                        continue
-                                    break
-                            except Exception as e:
-                                print(f"Erro ao aplicar transparência na carta: {e}")
-
+                            self.canvas.itemconfig(f"carta_{nivel.name}_{idx}", image=img_tk)
 
     # Métodos para habilitar/desabilitar pedras
     def habilitarPedras(self):
