@@ -23,7 +23,7 @@ class TelaInicial:
         self.canvas.pack()
 
         # Fundo
-        bg = Image.open("resources/background-inicio.png").resize((1080, 720))
+        bg = Image.open("resources/extra/background-inicio.png").resize((1080, 720))
         self.bg_photo = ImageTk.PhotoImage(bg)
         self.canvas.create_image(
             540,  # x = width/2
@@ -32,7 +32,7 @@ class TelaInicial:
         )
 
         # Logo com transparência
-        logo = Image.open("resources/logo.png")
+        logo = Image.open("resources/extra/logo.png")
         logo = logo.resize((int(logo.width * 0.75), int(logo.height * 0.75)))
         self.logo_photo = ImageTk.PhotoImage(logo)
         self.canvas.create_image(
@@ -42,7 +42,7 @@ class TelaInicial:
         )
 
         # Cartas no canto esquerdo
-        cartas = Image.open("resources/cartas-inicio.png")
+        cartas = Image.open("resources/extra/cartas-inicio.png")
         # Reduzir para 40% do tamanho original
         new_width = int(cartas.width * 0.60)
         new_height = int(cartas.height * 0.60)
@@ -55,7 +55,7 @@ class TelaInicial:
         )
 
         # Joias no canto direito
-        joias = Image.open("resources/joias-inicio.png")
+        joias = Image.open("resources/extra/joias-inicio.png")
         # Reduzir para 40% do tamanho original
         new_width = int(joias.width * 0.65)
         new_height = int(joias.height * 0.65)
@@ -82,7 +82,7 @@ class TelaInicial:
         box_center_y = 720 // 2
 
         # Redimensiona a sombra e posiciona centralizada
-        sombra = Image.open("resources/botões/Sombra.png")
+        sombra = Image.open("resources/extra/Sombra.png")
         sombra = sombra.resize((BOX_WIDTH, BOX_HEIGHT))
         self.sombra_photo = ImageTk.PhotoImage(sombra)
         self.canvas.create_image(
@@ -100,9 +100,9 @@ class TelaInicial:
         ]
 
         # Carregar e redimensionar imagens dos botões para o tamanho correto
-        jogar = Image.open("resources/botões/jogar.png")
-        regras = Image.open("resources/botões/regras.png")
-        creditos = Image.open("resources/botões/creditos.png")
+        jogar = Image.open("resources/botoes/jogar.png")
+        regras = Image.open("resources/botoes/regras.png")
+        creditos = Image.open("resources/botoes/creditos.png")
 
         # Redimensionar para o tamanho correto
         jogar = jogar.resize((BUTTON_WIDTH, BUTTON_HEIGHT))

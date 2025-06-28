@@ -14,7 +14,7 @@ class Jogador:
         self.jogadorVenceu = False
         self.jogadorEmpatou = False
         self.cartasEmMao = list()
-        self.pedrasEmMao = dict()
+        self.pedrasEmMao = {pedra: 0 for pedra in PedrasEnum}
         self.cartasReservadas = list()
     
     def pegarPedras(self) -> Dict[Pedra, int]:
@@ -67,3 +67,24 @@ class Jogador:
     
     def jogadorEmpatou(self):
         self.jogadorEmpatou = True
+    
+    def to_dict(self):
+        return {
+            "nome": self.nome,
+            "pontuacao": self.pontuacao,
+            "jogadorEmTurno": self.jogadorEmTurno,
+            "cartasEmMao": [carta.to_dict() for carta in self.cartasEmMao],
+            "pedrasEmMao": {pedra.name: qtd for pedra, qtd in self.pedrasEmMao.items()},
+            "cartasReservadas": [carta.to_dict() for carta in self.cartasReservadas],
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        from .enums.pedrasEnum import PedrasEnum
+        from .carta import Carta
+        jogador = cls(data["nome"], data["jogadorEmTurno"])
+        jogador.pontuacao = data["pontuacao"]
+        jogador.cartasEmMao = [Carta.from_dict(c) for c in data["cartasEmMao"]]
+        jogador.pedrasEmMao = {PedrasEnum[k]: v for k, v in data["pedrasEmMao"].items()}
+        jogador.cartasReservadas = [Carta.from_dict(c) for c in data["cartasReservadas"]]
+        return jogador

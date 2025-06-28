@@ -67,7 +67,7 @@ class TelaCreditos:
         )
 
         # Botão Voltar
-        self.botao_voltar_img = Image.open("resources/botões/botao-voltar.png")
+        self.botao_voltar_img = Image.open("resources/botoes/botao-voltar.png")
         self.botao_voltar_img = self.botao_voltar_img.resize((150, 70))
         self.botao_voltar_tk = ImageTk.PhotoImage(self.botao_voltar_img)
 
