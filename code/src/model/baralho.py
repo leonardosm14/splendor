@@ -5,41 +5,27 @@ from .enums.niveisEnum import NiveisEnum
 from .enums.pedrasEnum import PedrasEnum
 
 class Baralho:
-    def __init__(self, nivel: NiveisEnum):
+    def __init__(self, nivel: NiveisEnum, seed: int = None):
         self.nivel = nivel
         self.cartas: List[Carta] = []
-        self.inicializar_baralho()
-
-    def inicializar_baralho(self):
-        """Inicializa o baralho com cartas do nível especificado"""
-        cores_pedras = [p for p in PedrasEnum if p != PedrasEnum.OURO]
-        
-        for i in range(10):  # Exemplo: 10 cartas por nível
-            bonus = random.choice(cores_pedras)
-            self.cartas.append(
-                Carta(
-                    id=i,
-                    pontos=random.randint(1, 3),
-                    nivel=self.nivel,
-                    pedras={p: random.randint(0, 2) for p in cores_pedras},
-                    cartaDeRoubo=False,
-                    bonus=bonus,
-                    habilitada=True
-                )
-            )
+        self.seed = seed
+        # Removido a inicialização automática do baralho
+        # O baralho será preenchido apenas pelas cartas dos arquivos de imagem
 
     def verificaSeTemCartaDoMesmoNivelNoBaralho(self) -> bool:
         return len(self.cartas) > 0
 
+    def temCartas(self) -> bool:
+        """Verifica se o baralho tem cartas"""
+        return len(self.cartas) > 0
+
     def pegarCartaDoBaralho(self) -> Optional[Carta]:
-        """Retorna uma carta aleatória do baralho"""
+        """Retorna uma carta do baralho"""
         if self.cartas:
-            carta = random.choice(self.cartas)
-            self.cartas.remove(carta)  # Remove a carta do baralho após selecioná-la
+            carta = self.cartas.pop(0)  # Use pop(0) para garantir ordem igual para ambos jogadores
             return carta
-        raise ValueError("Baralho vazio! Não há cartas disponíveis.")
+        return None  # Não lança erro, apenas retorna None
 
     def adicionarCarta(self, carta: Carta):
+        """Adiciona uma carta ao baralho"""
         self.cartas.append(carta)
-        if carta.habilitada:
-            self.cartasVisiveis.append(carta)

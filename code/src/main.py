@@ -45,9 +45,7 @@ class PlayerInterface(DogPlayerInterface):
             }
             self.dog_server_interface.send_move(move_dict)
             # Atualiza o tabuleiro localmente para o jogador que enviou a jogada
-            if self.current_screen and hasattr(self.current_screen, "atualizarTabuleiro"):
-                self.current_screen.atualizarTabuleiro(tabuleiro)
-                messagebox.showinfo("Turno", "Aguardando jogada do oponente...")
+            messagebox.showinfo("Turno", "Aguardando jogada do oponente...")
         except Exception as e:
             print(f"Erro ao enviar estado do tabuleiro: {e}")
 
@@ -119,14 +117,6 @@ class PlayerInterface(DogPlayerInterface):
         self.create_players_instances(start_status)
         self.partida_em_andamento = True
 
-        local_id = start_status.get_local_id()
-        for name, player_id, order in players:
-            print(f"Jogador: {name}, ID: {player_id}, Ordem: {order}")
-            if player_id == local_id:
-                self.jogador_local = Jogador(nome=name, jogadorEmTurno=(int(order) == 1))
-            else:
-                self.jogador_remoto = Jogador(nome=name, jogadorEmTurno=(int(order) == 1))
-
         self.current_screen = TelaJogo(
             self.root,
             self.show_screen,
@@ -151,23 +141,34 @@ class PlayerInterface(DogPlayerInterface):
         self.jogador_remoto = None
 
         for name, player_id, order in players:
+            print(f"Jogador: {name}, ID: {player_id}, Ordem: {order}")
             if player_id == local_id:
-                self.jogador_local = Jogador(nome=name, jogadorEmTurno=(order == 1))
+                # Jogador local: habilitado apenas se order == 1
+                self.jogador_local = Jogador(nome=name, jogadorEmTurno=(int(order) == 1))
+                print(f"Jogador local criado: {name}, em turno: {int(order) == 1}")
             else:
-                self.jogador_remoto = Jogador(nome=name, jogadorEmTurno=(order == 1))
+                # Jogador remoto: habilitado apenas se order == 1
+                self.jogador_remoto = Jogador(nome=name, jogadorEmTurno=(int(order) == 1))
+                print(f"Jogador remoto criado: {name}, em turno: {int(order) == 1}")
 
         if not self.jogador_local or not self.jogador_remoto:
             raise ValueError("Falha ao criar jogadores")
 
     def receive_move(self, a_move):
-        """Recebe movimento do oponente"""
         if self.partida_em_andamento:
             tabuleiro_atualizado = a_move.get("tabuleiro_atualizado")
+            print("Recebendo tabuleiro:", tabuleiro_atualizado)  # DEBUG
             if tabuleiro_atualizado:
-                tabuleiro_obj = Tabuleiro.from_dict(tabuleiro_atualizado)
-                self.current_screen.atualizarTabuleiro(tabuleiro_obj)
-                self.jogador_local.habilitarJogador()
-                messagebox.showinfo("Turno", "Agora é seu turno!")
+                try:
+                    tabuleiro_obj = Tabuleiro.from_dict(tabuleiro_atualizado)
+                    # Inverte jogador local e remoto
+                    tabuleiro_obj.jogadorLocal, tabuleiro_obj.jogadorRemoto = tabuleiro_obj.jogadorRemoto, tabuleiro_obj.jogadorLocal
+                    
+                    # Atualiza o tabuleiro (que agora recarrega as imagens automaticamente)
+                    self.current_screen.atualizarTabuleiro(tabuleiro_obj)
+                    messagebox.showinfo("Turno", "Agora é seu turno!")
+                except Exception as e:
+                    print(f"Erro ao processar movimento: {e}")
 
     def clear_screen(self):
         for widget in self.root.winfo_children():

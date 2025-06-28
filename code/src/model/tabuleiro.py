@@ -8,28 +8,26 @@ from .enums.pedrasEnum import PedrasEnum
 from .enums.niveisEnum import NiveisEnum
 
 class Tabuleiro:
-    def __init__(self, jogadorLocal: Jogador, jogadorRemoto: Jogador):
+    def __init__(self, jogadorLocal: Jogador, jogadorRemoto: Jogador, seed: int = 0, inicializar_cartas=True):
         self.jogadorLocal = jogadorLocal
         self.jogadorRemoto = jogadorRemoto
-        self.baralhos = [Baralho(nivel=NiveisEnum.NIVEL1), Baralho(nivel=NiveisEnum.NIVEL2), Baralho(nivel=NiveisEnum.NIVEL3)]  # Baralhos para níveis 1, 2 e 3
+        self.baralhos = [
+            Baralho(nivel=NiveisEnum.NIVEL1, seed=seed),
+            Baralho(nivel=NiveisEnum.NIVEL2, seed=seed),
+            Baralho(nivel=NiveisEnum.NIVEL3, seed=seed)
+        ]
         self.pedrasNoTabuleiro = {pedra: 7 for pedra in PedrasEnum}
         self.cartasNoTabuleiro = []
-        
-        # Inicializa as cartas no tabuleiro
-        for i in range(3):  # Níveis 1, 2 e 3
-            for _ in range(4):  # 4 cartas por nível
-                try:
-                    self.cartasNoTabuleiro.append(self.baralhos[i].pegarCartaDoBaralho())
-                except ValueError:
-                    self.cartasNoTabuleiro.append(None)  # Adiciona None se o baralho estiver vazio
-
         self.rodada = 0
         self.partidaEmAndamento = False
         self.ultimaPartida = False
-
-        #Novos
         self.todasCartas = list()
-        self.inicializar_cartas_tabuleiro()
+        if inicializar_cartas:
+            for i in range(3):  # Níveis 1, 2 e 3
+                for _ in range(4):  # 4 cartas por nível
+                    carta = self.baralhos[i].pegarCartaDoBaralho()
+                    if carta:
+                        self.cartasNoTabuleiro.append(carta)
     
     def jogadorLocal(self):
         return self.jogadorLocal
@@ -44,6 +42,9 @@ class Tabuleiro:
             for _ in range(4):  # 4 cartas por nível
                 try:
                     carta = self.baralhos[nivel].pegarCartaDoBaralho()
+                    # Se for carta de roubo, pega outra carta
+                    while carta and carta.cartaDeRoubo:
+                        carta = self.baralhos[nivel].pegarCartaDoBaralho()
                     self.cartasNoTabuleiro.append(carta)
                 except (ValueError, IndexError) as e:
                     print(f"Erro ao pegar carta do baralho nível {nivel}: {e}")
@@ -54,6 +55,8 @@ class Tabuleiro:
         """Verifica se o jogador local tem pedras suficientes para comprar uma carta"""
         pedrasJogador = self.jogadorLocal.pegarPedras()
         pedrasCarta = carta.pegarPedrasDaCarta()
+
+        print(f"Verificando pedras: Jogador {pedrasJogador}, Carta {pedrasCarta}")
         
         return all(
             pedrasJogador[pedra] >= pedrasCarta[pedra]
@@ -61,23 +64,23 @@ class Tabuleiro:
         )
     
     def instanciarCartas(self,
-                         id: int,
+                        id: int,
                         pontos: int,
                         nivel: NiveisEnum,
                         pedras: Dict[PedrasEnum, int],
                         cartaDeRoubo: bool,
                         bonus: PedrasEnum | None,
                         habilitada: bool ):
-        
         carta = Carta(id = id,
-                      pontos = pontos,
-                      nivel=nivel,
-                      pedras=pedras,
-                      cartaDeRoubo=cartaDeRoubo,
-                      bonus=bonus,
-                      habilitada=habilitada)
-        
-        self.todasCarta.append(carta)
+                    pontos = pontos,
+                    nivel=nivel,
+                    pedras=pedras,
+                    cartaDeRoubo=cartaDeRoubo,
+                    bonus=bonus,
+                    habilitada=habilitada)
+        self.todasCartas.append(carta)
+        # Adicione ao baralho correto
+        self.baralhos[nivel.value - 1].adicionarCarta(carta)
 
     def ehUltimaPartida(self) -> bool:
         return self.ultimaPartida
@@ -98,6 +101,18 @@ class Tabuleiro:
             for pedra in PedrasEnum
         }
     
+    def reposicionarCartasSeNecessario(self):
+        """Reposiciona cartas no tabuleiro se necessário"""
+        # Remove cartas None do tabuleiro e repõe com novas cartas
+        for i, carta in enumerate(self.cartasNoTabuleiro):
+            if carta is None:
+                # Determina o nível baseado no índice
+                nivel_idx = i // 4
+                if nivel_idx < len(self.baralhos) and self.baralhos[nivel_idx].temCartas():
+                    nova_carta = self.baralhos[nivel_idx].pegarCartaDoBaralho()
+                    if nova_carta:
+                        self.cartasNoTabuleiro[i] = nova_carta
+    
     def pegarCartaDoTabuleiro(self, indiceCarta: int) -> Tuple[Optional[Carta], bool]:
         if 0 <= indiceCarta < len(self.cartasNoTabuleiro):
             carta = self.cartasNoTabuleiro[indiceCarta]
@@ -107,7 +122,7 @@ class Tabuleiro:
                 # Repõe carta do mesmo nível
                 nivel = carta.nivel
                 try:
-                    nova_carta = self.baralhos[nivel].pegarCartaDoBaralho()
+                    nova_carta = self.baralhos[nivel.value - 1].pegarCartaDoBaralho()
                     self.cartasNoTabuleiro[indiceCarta] = nova_carta
                 except (ValueError, IndexError):
                     pass
@@ -116,17 +131,11 @@ class Tabuleiro:
         return None, False
     
     def pegarPedrasDoTabuleiro(self, pedras: Dict[PedrasEnum, int]) -> bool:
-        """
-        Tenta pegar pedras do tabuleiro, respeitando as regras do jogo.
-        Retorna True se bem sucedido.
-        """
-        # Verifica se há pedras suficientes no tabuleiro
         if all(self.pedrasNoTabuleiro[pedra] >= quantidade for pedra, quantidade in pedras.items()):
-            # Verifica regra de não pegar mais de 3 pedras diferentes
             if len(pedras) <= 3:
                 for pedra, quantidade in pedras.items():
                     self.pedrasNoTabuleiro[pedra] -= quantidade
-                    self.jogadorLocal.adicionarPedraNaMao(pedra)
+                    self.jogadorLocal.adicionarPedraNaMao(pedra, quantidade)
                 return True
         return False
     
@@ -191,7 +200,19 @@ class Tabuleiro:
         return self.jogadorLocal.pegarPedras()
     
     def pegarCartasRoubo(self) -> List[Carta]:
-        return [carta for carta in self.jogadorLocal.pegarCartas() if carta.verificarSeCartaDeRoubo()]
+        """Retorna todas as cartas de roubo dos jogadores"""
+        cartas_roubo = []
+        for carta in self.jogadorLocal.pegarCartas():
+            if carta.verificarSeCartaDeRoubo():
+                cartas_roubo.append(carta)
+        for carta in self.jogadorRemoto.pegarCartas():
+            if carta.verificarSeCartaDeRoubo():
+                cartas_roubo.append(carta)
+        return cartas_roubo
+    
+    def pegarPedrasCarta(self, carta: Carta) -> Dict[PedrasEnum, int]:
+        """Retorna as pedras necessárias para comprar uma carta"""
+        return carta.pegarPedrasDaCarta()
     
     def verificarIgualdadePedras(self, pedraA: Pedra, pedraB: Pedra) -> bool:
         return pedraA.pegarTipo() == pedraB.pegarTipo()
@@ -199,8 +220,8 @@ class Tabuleiro:
     def verificarOuroDisponivel(self) -> bool:
         return self.pedrasNoTabuleiro[PedrasEnum.OURO] > 0
     
-    def verificaSeJogadorTemPedra(self, pedra: Pedra) -> bool:
-        return self.jogadorLocal.pegarPedras().get(pedra.tipo, 0) > 0
+    def verificaSeJogadorTemPedra(self, pedra: PedrasEnum) -> bool:
+        return self.jogadorLocal.pegarPedras().get(pedra, 0) > 0
     
     def verificarSeEstaReservada(self, carta: Carta) -> bool:
         return carta in self.jogadorLocal.cartasReservadas()
@@ -210,6 +231,16 @@ class Tabuleiro:
     
     def verificaSeTemCartaRoubo(self) -> bool:
         return self.jogadorLocal.verificarSeTemCartaRoubo()
+    
+    def verificaSeTemCartaDeRoubo(self) -> bool:
+        """Verifica se há cartas de roubo no jogo"""
+        for carta in self.jogadorLocal.pegarCartas():
+            if carta.verificarSeCartaDeRoubo():
+                return True
+        for carta in self.jogadorRemoto.pegarCartas():
+            if carta.verificarSeCartaDeRoubo():
+                return True
+        return False
     
     def habilitarUltimaPartida(self):
         self.ultimaPartida = True
@@ -242,11 +273,9 @@ class Tabuleiro:
 
     @classmethod
     def from_dict(cls, data):
-        from .enums.pedrasEnum import PedrasEnum
-        from .carta import Carta
         jogador_local = Jogador.from_dict(data["jogadorLocal"])
         jogador_remoto = Jogador.from_dict(data["jogadorRemoto"])
-        tabuleiro = cls(jogador_local, jogador_remoto)
+        tabuleiro = cls(jogador_local, jogador_remoto, inicializar_cartas=False)
         tabuleiro.pedrasNoTabuleiro = {PedrasEnum[p]: v for p, v in data["pedrasNoTabuleiro"].items()}
         tabuleiro.cartasNoTabuleiro = [Carta.from_dict(c) if c else None for c in data["cartasNoTabuleiro"]]
         tabuleiro.rodada = data.get("rodada", 0)

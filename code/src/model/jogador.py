@@ -17,7 +17,7 @@ class Jogador:
         self.pedrasEmMao = {pedra: 0 for pedra in PedrasEnum}
         self.cartasReservadas = list()
     
-    def pegarPedras(self) -> Dict[Pedra, int]:
+    def pegarPedras(self) -> Dict[PedrasEnum, int]:
         return self.pedrasEmMao
     
     def pegarPontuacaoJogador(self) -> int:
@@ -26,18 +26,47 @@ class Jogador:
     def adicionarCartaNaMao(self, carta: Carta):
         self.cartasEmMao.append(carta)
     
+    def adicionarCartaDeRoubo(self, carta: Carta):
+        """Adiciona uma carta de roubo à mão do jogador"""
+        self.cartasEmMao.append(carta)
+    
+    def adicionarCarta(self, carta: Carta):
+        """Adiciona uma carta à mão do jogador"""
+        self.cartasEmMao.append(carta)
+    
+    def adicionarPontos(self, pontos: int):
+        """Adiciona pontos ao jogador"""
+        self.pontuacao += pontos
+    
+    def adicionarBonus(self, bonus: PedrasEnum):
+        """Adiciona um bônus ao jogador (equivalente a uma pedra)"""
+        self.pedrasEmMao[bonus] += 1
+    
+    def removerPedras(self, pedras: Dict[PedrasEnum, int]):
+        """Remove pedras da mão do jogador"""
+        for pedra, quantidade in pedras.items():
+            self.pedrasEmMao[pedra] -= quantidade
+    
+    def reservarCarta(self, carta: Carta) -> bool:
+        """Reserva uma carta para o jogador"""
+        self.cartasReservadas.append(carta)
+        return True
+    
     def pegarCartas(self) -> List[Carta]:
         return self.cartasEmMao
 
     def atualizarPontuacaoJogador(self, pontosCarta: int):
         self.pontuacao += pontosCarta
     
-    def removerPedraDaMao(self, pedra: Pedra):
+    def removerPedraDaMao(self, pedra: PedrasEnum):
         self.pedrasEmMao[pedra] -= 1
     
-    def adicionarPedraNaMao(self, pedra: Pedra):
-        self.pedrasEmMao[pedra] += 1
+    def adicionarPedraNaMao(self, pedra: PedrasEnum, quantidade: int):
+        self.pedrasEmMao[pedra] += quantidade
     
+    def verificarHabilitado(self):
+        return self.jogadorEmTurno
+
     def habilitarJogador(self):
         self.jogadorEmTurno = True
     
@@ -56,11 +85,15 @@ class Jogador:
                 return True
         return False
     
-    def possuiPedra(self, pedra: Pedra) -> bool:
+    def possuiPedra(self, pedra: PedrasEnum) -> bool:
         return (self.pedrasEmMao[pedra] != 0)
     
     def verificaSeEstaReservada(self, carta: Carta) -> bool:
         return (carta in self.cartasReservadas)
+
+    def cartasReservadas(self) -> List[Carta]:
+        """Retorna a lista de cartas reservadas"""
+        return self.cartasReservadas
 
     def jogadorVenceu(self):
         self.jogadorVenceu = True

@@ -25,16 +25,28 @@ class Carta:
     def pegarPontosDaCarta(self) -> int:
         return self.pontos
     
+    def pegarPontos(self) -> int:
+        return self.pontos
+    
     def pegarPedrasDaCarta(self) -> Dict[PedrasEnum, int]:
         return self.pedras
     
     def verificarSeTemBonus(self) -> bool:
         return self.bonus is not None
     
+    def temBonus(self) -> bool:
+        return self.bonus is not None
+    
+    def pegarBonus(self) -> PedrasEnum:
+        return self.bonus
+    
     def pegarPedraDeBonus(self) -> PedrasEnum:
         return self.bonus
 
     def pegarNivelCarta(self):
+        return self.nivel
+    
+    def pegarNivel(self):
         return self.nivel
 
     def verificarSeCartaDeRoubo(self):
@@ -46,28 +58,28 @@ class Carta:
     def habilitarCarta(self):
         self.habilitada = True        
     
+    def habilitar(self):
+        self.habilitada = True
+    
     def to_dict(self):
         return {
             "id": self.id,
             "pontos": self.pontos,
             "nivel": self.nivel.name,
-            "pedras": {pedra.name: qtd for pedra, qtd in self.pedras.items()},
+            "pedras": {k.name: v for k, v in self.pedras.items()},
             "cartaDeRoubo": self.cartaDeRoubo,
             "bonus": self.bonus.name if self.bonus else None,
-            "habilitada": self.habilitada,
+            "habilitada": self.habilitada
         }
 
     @classmethod
     def from_dict(cls, data):
-        nivel = NiveisEnum[data["nivel"]]
-        pedras = {PedrasEnum[k]: v for k, v in data["pedras"].items()}
-        bonus = PedrasEnum[data["bonus"]] if data["bonus"] else None
         return cls(
             id=data["id"],
             pontos=data["pontos"],
-            nivel=nivel,
-            pedras=pedras,
+            nivel=NiveisEnum[data["nivel"]],
+            pedras={PedrasEnum[k]: v for k, v in data["pedras"].items()},
             cartaDeRoubo=data["cartaDeRoubo"],
-            bonus=bonus,
-            habilitada=data["habilitada"]
+            bonus=PedrasEnum[data["bonus"]] if data["bonus"] else None,
+            habilitada=data.get("habilitada", True)
         )
