@@ -1,7 +1,6 @@
 from typing import Dict, Union
 from .enums.niveisEnum import NiveisEnum
 from .enums.pedrasEnum import PedrasEnum
-from .pedra import Pedra
 
 
 class Carta:
@@ -31,9 +30,6 @@ class Carta:
     def pegarPedrasDaCarta(self) -> Dict[PedrasEnum, int]:
         return self.pedras
     
-    def verificarSeTemBonus(self) -> bool:
-        return self.bonus is not None
-    
     def temBonus(self) -> bool:
         return self.bonus is not None
     
@@ -43,9 +39,6 @@ class Carta:
     def pegarPedraDeBonus(self) -> PedrasEnum:
         return self.bonus
 
-    def pegarNivelCarta(self):
-        return self.nivel
-    
     def pegarNivel(self):
         return self.nivel
 
@@ -84,17 +77,17 @@ class Carta:
             "h": self.habilitada  # Habilitada
         }
 
-    @classmethod
-    def from_dict(cls, data):
-        return cls(
-            id=data["id"],
-            pontos=data["pontos"],
-            nivel=NiveisEnum[data["nivel"]],
-            pedras={PedrasEnum[k]: v for k, v in data["pedras"].items()},
-            cartaDeRoubo=data["cartaDeRoubo"],
-            bonus=PedrasEnum[data["bonus"]] if data["bonus"] else None,
-            habilitada=data.get("habilitada", True)
-        )
+    # @classmethod
+    # def from_dict(cls, data):
+    #     return cls(
+    #         id=data["id"],
+    #         pontos=data["pontos"],
+    #         nivel=NiveisEnum[data["nivel"]],
+    #         pedras={PedrasEnum[k]: v for k, v in data["pedras"].items()},
+    #         cartaDeRoubo=data["cartaDeRoubo"],
+    #         bonus=PedrasEnum[data["bonus"]] if data["bonus"] else None,
+    #         habilitada=data.get("habilitada", True)
+    #     )
     
     @classmethod
     def from_dict_compact(cls, data):

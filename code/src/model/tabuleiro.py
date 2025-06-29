@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 import random
 from .jogador import Jogador
-from .pedra import Pedra
 from .baralho import Baralho
 from .carta import Carta
 from .enums.pedrasEnum import PedrasEnum
@@ -142,12 +141,6 @@ class Tabuleiro:
     def ehUltimaPartida(self) -> bool:
         return self.ultimaPartida
     
-    def atualizarEstadoTabuleiro(self):
-        """Atualiza o estado geral do tabuleiro após uma jogada"""
-        self.atualizarPedrasNoTabuleiro()
-        self.reposicionarCartasSeNecessario()
-        self.verificarFimDeJogo()
-    
     def atualizarPedrasNoTabuleiro(self):
         """Atualiza a contagem de pedras disponíveis no tabuleiro"""
         pedrasJogadorLocal = self.jogadorLocal.pegarPedras()
@@ -157,69 +150,6 @@ class Tabuleiro:
             pedra: max(0, 7 - (pedrasJogadorLocal[pedra] + pedrasJogadorRemoto[pedra]))
             for pedra in PedrasEnum
         }
-    
-    def reposicionarCartasSeNecessario(self):
-        """Reposiciona cartas no tabuleiro se necessário"""
-        # Usa o seed para determinar qual jogador recebe as cartas de roubo
-        rng = random.Random(self.seed_partida)
-        
-        # Remove cartas None do tabuleiro e repõe com novas cartas
-        for i, carta in enumerate(self.cartasNoTabuleiro):
-            if carta is None:
-                # Determina o nível baseado no índice
-                nivel_idx = i // 4
-                if nivel_idx < len(self.baralhos) and self.baralhos[nivel_idx].temCartas():
-                    # Tenta pegar uma carta normal (não de roubo)
-                    tentativas = 0
-                    max_tentativas = 10
-                    
-                    while tentativas < max_tentativas:
-                        nova_carta = self.baralhos[nivel_idx].pegarCartaDoBaralho()
-                        if nova_carta is None:
-                            break  # Não há mais cartas no baralho
-                        
-                        # Se for carta de roubo, distribui de forma determinística
-                        if nova_carta.cartaDeRoubo:
-                            if rng.randint(0, 1) == 0:
-                                self.jogadorLocal.adicionarCartaDeRoubo(nova_carta)
-                            else:
-                                self.jogadorRemoto.adicionarCartaDeRoubo(nova_carta)
-                            tentativas += 1
-                            continue
-                        else:
-                            # Carta normal encontrada, coloca no tabuleiro
-                            self.cartasNoTabuleiro[i] = nova_carta
-                            break
-                    
-                    # Se não conseguiu encontrar uma carta normal, deixa como None
-                    if tentativas >= max_tentativas:
-                        print(f"Não foi possível repor carta na posição {i} do nível {nivel_idx}")
-    
-    def pegarCartaDoTabuleiro(self, indiceCarta: int) -> Tuple[Optional[Carta], bool]:
-        if 0 <= indiceCarta < len(self.cartasNoTabuleiro):
-            carta = self.cartasNoTabuleiro[indiceCarta]
-            if carta and self.verificarPedrasSuficientes(carta):
-                self.cartasNoTabuleiro[indiceCarta] = None
-                
-                # Repõe carta do mesmo nível
-                nivel = carta.nivel
-                try:
-                    nova_carta = self.baralhos[nivel.value - 1].pegarCartaDoBaralho()
-                    self.cartasNoTabuleiro[indiceCarta] = nova_carta
-                except (ValueError, IndexError):
-                    pass
-                    
-                return carta, True
-        return None, False
-    
-    def pegarPedrasDoTabuleiro(self, pedras: Dict[PedrasEnum, int]) -> bool:
-        if all(self.pedrasNoTabuleiro[pedra] >= quantidade for pedra, quantidade in pedras.items()):
-            if len(pedras) <= 3:
-                for pedra, quantidade in pedras.items():
-                    self.pedrasNoTabuleiro[pedra] -= quantidade
-                    self.jogadorLocal.adicionarPedraNaMao(pedra, quantidade)
-                return True
-        return False
     
     def reservarCarta(self, indiceCarta: int) -> bool:
         """
@@ -232,12 +162,6 @@ class Tabuleiro:
                 self.cartasNoTabuleiro[indiceCarta] = None
                 return True
         return False
-    
-    def verificarFimDeJogo(self):
-        """Verifica se as condições de fim de jogo foram atingidas"""
-        if (self.jogadorLocal.pegarPontuacaoJogador() >= PONTOS_MINIMOS_VITORIA or 
-            self.jogadorRemoto.pegarPontuacaoJogador() >= PONTOS_MINIMOS_VITORIA):
-            self.habilitarUltimaPartida()
     
     def avaliarVencedor(self) -> Optional[Jogador]:
         """
@@ -256,21 +180,6 @@ class Tabuleiro:
             self.jogadorRemoto.jogadorVenceu()
             return self.jogadorRemoto
         return None
-    
-    def habilitarInteracoes(self, habilitar: bool):
-        """Habilita ou desabilita interações com o tabuleiro"""
-        if habilitar:
-            self.jogadorLocal.habilitarJogador()
-        else:
-            self.jogadorLocal.desabilitarJogador()
-    
-    def reiniciarParaNovaPartida(self):
-        """Prepara o tabuleiro para uma nova partida"""
-        self.pedrasNoTabuleiro = {pedra: 7 for pedra in PedrasEnum}
-        self.cartasNoTabuleiro = [self.baralhos[i].pegarCartaDoBaralho() for i in range(3) for _ in range(4)]
-        self.rodada = 0
-        self.partidaEmAndamento = True
-        self.ultimaPartida = False
     
     def pegarNomeJogador(self) -> str:
         return self.jogadorLocal.pegarNome()
@@ -296,11 +205,8 @@ class Tabuleiro:
         """Retorna as pedras necessárias para comprar uma carta"""
         return carta.pegarPedrasDaCarta()
     
-    def verificarIgualdadePedras(self, pedraA: Pedra, pedraB: Pedra) -> bool:
-        return pedraA.pegarTipo() == pedraB.pegarTipo()
-    
-    def verificarOuroDisponivel(self) -> bool:
-        return self.pedrasNoTabuleiro[PedrasEnum.OURO] > 0
+    def verificarIgualdadePedras(self, pedraA: PedrasEnum, pedraB: PedrasEnum) -> bool:
+        return pedraA == pedraB
     
     def verificaSeJogadorTemPedra(self, pedra: PedrasEnum) -> bool:
         return self.jogadorLocal.pegarPedras().get(pedra, 0) > 0
@@ -338,8 +244,9 @@ class Tabuleiro:
                 carta.desabilitarCarta()
     
     def habilitarPedrasTabuleiro(self):
-        for pedra in self.pedrasNoTabuleiro:
-            pedra.habilitarPedra()
+        # Como não há mais classe Pedra, este método não faz mais sentido
+        # As pedras são habilitadas/desabilitadas através da interface gráfica
+        pass
     
 
     def to_dict(self):

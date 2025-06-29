@@ -10,7 +10,6 @@ from model.tabuleiro import Tabuleiro
 from model.jogador import Jogador
 from model.enums.niveisEnum import NiveisEnum
 from model.enums.pedrasEnum import PedrasEnum
-from model.pedra import Pedra
 from model.carta import Carta
 
 # Variável global para o valor mínimo de pontos para vitória
@@ -1865,7 +1864,7 @@ class TelaJogo:
         # Verifica se pelo menos um jogador atingiu a pontuação mínima
         if pontos1 >= PONTOS_MINIMOS_VITORIA or pontos2 >= PONTOS_MINIMOS_VITORIA:
             if pontos1 > pontos2:
-                vencedor = self.tabuleiro.jogadorLocal.pegarNome()
+                vencedor = self.tabuleiro.pegarNomeJogador()
                 self.tabuleiro.jogadorLocal.marcarVitoria()
                 self.notificarVencedor(vencedor)
             elif pontos2 > pontos1:

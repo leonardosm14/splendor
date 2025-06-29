@@ -1,7 +1,6 @@
 from typing import Dict, List
 from .enums.pedrasEnum import PedrasEnum
 from .carta import Carta
-from .pedra import Pedra
 
 class Jogador:
     def __init__(
@@ -22,9 +21,6 @@ class Jogador:
     
     def pegarPontuacaoJogador(self) -> int:
         return self.pontuacao
-
-    def adicionarCartaNaMao(self, carta: Carta):
-        self.cartasEmMao.append(carta)
     
     def adicionarCartaDeRoubo(self, carta: Carta):
         """Adiciona uma carta de roubo à mão do jogador"""
@@ -55,11 +51,6 @@ class Jogador:
     def pegarCartas(self) -> List[Carta]:
         return self.cartasEmMao
 
-    def atualizarPontuacaoJogador(self, pontosCarta: int):
-        self.pontuacao += pontosCarta
-    
-    def removerPedraDaMao(self, pedra: PedrasEnum):
-        self.pedrasEmMao[pedra] -= 1
     
     def adicionarPedraNaMao(self, pedra: PedrasEnum, quantidade: int):
         self.pedrasEmMao[pedra] += quantidade
@@ -73,8 +64,6 @@ class Jogador:
     def desabilitarJogador(self):
         self.jogadorEmTurno = False
     
-    def adicionarCartaNaReserva(self, carta: Carta):
-        self.cartasReservadas.append(carta)
     
     def pegarNome(self) -> str:
         return self.nome
