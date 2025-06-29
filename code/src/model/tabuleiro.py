@@ -22,6 +22,7 @@ class Tabuleiro:
         self.partidaEmAndamento = False
         self.ultimaPartida = False
         self.todasCartas = list()
+        self.oferta_pendente = None
         if inicializar_cartas:
             for i in range(3):  # Níveis 1, 2 e 3
                 for _ in range(4):  # 4 cartas por nível
@@ -52,16 +53,32 @@ class Tabuleiro:
                     
     
     def verificarPedrasSuficientes(self, carta: Carta) -> bool:
-        """Verifica se o jogador local tem pedras suficientes para comprar uma carta"""
+        """Verifica se o jogador local tem pedras suficientes para comprar uma carta, considerando ouro como coringa"""
         pedrasJogador = self.jogadorLocal.pegarPedras()
         pedrasCarta = carta.pegarPedrasDaCarta()
 
         print(f"Verificando pedras: Jogador {pedrasJogador}, Carta {pedrasCarta}")
         
-        return all(
-            pedrasJogador[pedra] >= pedrasCarta[pedra]
-            for pedra in pedrasCarta
-        )
+        # Calcula quantas pedras de ouro o jogador tem
+        ouro_disponivel = pedrasJogador.get(PedrasEnum.OURO, 0)
+        
+        # Verifica se tem pedras suficientes para cada tipo, usando ouro como coringa se necessário
+        for pedra, quantidade_necessaria in pedrasCarta.items():
+            pedras_disponiveis = pedrasJogador.get(pedra, 0)
+            
+            # Se não tem pedras suficientes do tipo específico
+            if pedras_disponiveis < quantidade_necessaria:
+                # Calcula quantas pedras de ouro precisaria usar
+                ouro_necessario = quantidade_necessaria - pedras_disponiveis
+                
+                # Se não tem ouro suficiente, não pode comprar
+                if ouro_disponivel < ouro_necessario:
+                    return False
+                
+                # Usa ouro como coringa
+                ouro_disponivel -= ouro_necessario
+        
+        return True
     
     def instanciarCartas(self,
                         id: int,
@@ -269,7 +286,24 @@ class Tabuleiro:
             "rodada": self.rodada,
             "partidaEmAndamento": self.partidaEmAndamento,
             "ultimaPartida": self.ultimaPartida,
+            "oferta_pendente": self._serializar_oferta_pendente() if hasattr(self, 'oferta_pendente') and self.oferta_pendente else None,
         }
+    
+    def _serializar_oferta_pendente(self):
+        """Serializa a oferta pendente convertendo PedrasEnum para strings"""
+        if not self.oferta_pendente:
+            return None
+        
+        try:
+            return {
+                'pedra_local': self.oferta_pendente['pedra_local'].name if self.oferta_pendente['pedra_local'] else None,
+                'pedra_remoto': self.oferta_pendente['pedra_remoto'].name if self.oferta_pendente['pedra_remoto'] else None,
+                'jogador_origem': self.oferta_pendente['jogador_origem']
+            }
+        except Exception as e:
+            print(f"Erro ao serializar oferta pendente: {e}")
+            print(f"Oferta pendente: {self.oferta_pendente}")
+            return None
 
     @classmethod
     def from_dict(cls, data):
@@ -281,4 +315,22 @@ class Tabuleiro:
         tabuleiro.rodada = data.get("rodada", 0)
         tabuleiro.partidaEmAndamento = data.get("partidaEmAndamento", False)
         tabuleiro.ultimaPartida = data.get("ultimaPartida", False)
+        tabuleiro.oferta_pendente = cls._deserializar_oferta_pendente(data.get("oferta_pendente"))
         return tabuleiro
+    
+    @classmethod
+    def _deserializar_oferta_pendente(cls, oferta_data):
+        """Deserializa a oferta pendente convertendo strings para PedrasEnum"""
+        if not oferta_data:
+            return None
+        
+        try:
+            return {
+                'pedra_local': PedrasEnum[oferta_data['pedra_local']] if oferta_data['pedra_local'] else None,
+                'pedra_remoto': PedrasEnum[oferta_data['pedra_remoto']] if oferta_data['pedra_remoto'] else None,
+                'jogador_origem': oferta_data['jogador_origem']
+            }
+        except Exception as e:
+            print(f"Erro ao deserializar oferta pendente: {e}")
+            print(f"Dados da oferta: {oferta_data}")
+            return None

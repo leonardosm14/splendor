@@ -91,7 +91,7 @@ class Jogador:
     def verificaSeEstaReservada(self, carta: Carta) -> bool:
         return (carta in self.cartasReservadas)
 
-    def cartasReservadas(self) -> List[Carta]:
+    def pegarCartasReservadas(self) -> List[Carta]:
         """Retorna a lista de cartas reservadas"""
         return self.cartasReservadas
 

@@ -67,6 +67,20 @@ class TelaJogo:
         self.cartaSelecionada = None
         self.ofertaDePedras = {"local": None, "remoto": None}
         self.modo_reserva = False  # Inicializa o modo de reserva
+        
+        # Variáveis para oferta de troca
+        self.modo_oferta_troca = False
+        self.pedra_local_selecionada = None
+        self.pedra_remoto_selecionada = None
+        self.oferta_pendente = None  # Armazena a oferta para o próximo jogador
+        
+        # Controles de habilitação
+        self.pedras_habilitadas = False
+        self.cartas_habilitadas = False
+
+        # Cache para efeitos visuais
+        self.efeitos_clique = {}
+        self.pedras_selecionadas_visuais = set()
 
         # Carrega os recursos
         self.carregarCartas()
@@ -139,6 +153,9 @@ class TelaJogo:
         else:
             self.tabuleiro.jogadorLocal.desabilitarJogador()
             self.desabilitarJogadas()
+        
+        # Verifica se há oferta pendente para o jogador atual (local ou remoto)
+        self.verificarOfertaPendente()
 
     def recarregarImagensCartas(self):
         """Recarrega as imagens das cartas para todas as cartas no tabuleiro"""
@@ -181,7 +198,7 @@ class TelaJogo:
 
     def restaurarEstadoInicial(self):
         """Restaura o estado inicial do jogo"""
-        self.frame.destroy()  # Destroi a instância atual da tela
+        self.canvas.destroy()  # Destroi o canvas atual
         self.show_screen("inicial")  # Retorna para a tela inicial
     
     def desabilitarJogador(self):
@@ -268,6 +285,8 @@ class TelaJogo:
         seed = 12345  # Use um valor compartilhado entre os jogadores
 
         def carregarCartasDeDiretorio(diretorio: Path, nivel: NiveisEnum = None, roubo=False):
+            # Primeiro, carrega todas as cartas únicas do diretório
+            cartas_unicas = []
             for carta_img in diretorio.glob("*.png"):
                 try:
                     img = Image.open(carta_img)
@@ -275,38 +294,61 @@ class TelaJogo:
                     img_tk = ImageTk.PhotoImage(img)
                     id_base, pontos, pedras, cartaDeRoubo, bonus, habilitada = self.extrair_dados_carta(carta_img, nivel, roubo)
                     nivel_destino = NiveisEnum.NIVEL3 if roubo else nivel
-
-                    if not roubo:
-                        # Para cartas normais, cria 3 cópias com IDs únicos
-                        for i in range(3):
-                            id_carta = hash(f"{id_base}_{i}")
-                            self.tabuleiro.instanciarCartas(
-                                id=id_carta,
-                                pontos=pontos,
-                                nivel=nivel_destino,
-                                pedras=pedras.copy(),
-                                cartaDeRoubo=False,
-                                bonus=bonus,
-                                habilitada=habilitada
-                            )
-                            self.carta_imgs[id_carta] = img_tk
-                    else:
-                        # Para cartas de roubo, cria apenas uma cópia e adiciona ao baralho
-                        # mas não ao tabuleiro inicial
-                        if len([c for c in self.tabuleiro.todasCartas if c.cartaDeRoubo]) < 3:
-                            id_carta = hash(f"{id_base}_roubo")
-                            self.tabuleiro.instanciarCartas(
-                                id=id_carta,
-                                pontos=pontos,
-                                nivel=nivel_destino,
-                                pedras=pedras.copy(),
-                                cartaDeRoubo=True,
-                                bonus=bonus,
-                                habilitada=habilitada
-                            )
-                            self.carta_imgs[id_carta] = img_tk
+                    
+                    cartas_unicas.append({
+                        'img_tk': img_tk,
+                        'id_base': id_base,
+                        'pontos': pontos,
+                        'pedras': pedras.copy(),
+                        'cartaDeRoubo': cartaDeRoubo,
+                        'bonus': bonus,
+                        'habilitada': habilitada,
+                        'nivel': nivel_destino
+                    })
                 except Exception as e:
                     print(f"Erro ao carregar carta {carta_img}: {e}")
+            
+            # Agora cria 20 cartas por deck, repetindo as cartas únicas
+            if not roubo:
+                # Para cartas normais, cria 20 cartas por nível
+                cartas_por_nivel = 20
+                for i in range(cartas_por_nivel):
+                    # Seleciona uma carta única de forma cíclica
+                    carta_unica = cartas_unicas[i % len(cartas_unicas)]
+                    
+                    # Cria ID único para esta instância
+                    id_carta = hash(f"{carta_unica['id_base']}_{nivel.value}_{i}")
+                    
+                    # Instancia a carta
+                    self.tabuleiro.instanciarCartas(
+                        id=id_carta,
+                        pontos=carta_unica['pontos'],
+                        nivel=carta_unica['nivel'],
+                        pedras=carta_unica['pedras'],
+                        cartaDeRoubo=False,
+                        bonus=carta_unica['bonus'],
+                        habilitada=carta_unica['habilitada']
+                    )
+                    
+                    # Associa a imagem à carta
+                    self.carta_imgs[id_carta] = carta_unica['img_tk']
+            else:
+                # Para cartas de roubo, cria apenas 3 cartas
+                for i in range(3):
+                    if i < len(cartas_unicas):
+                        carta_unica = cartas_unicas[i]
+                        id_carta = hash(f"{carta_unica['id_base']}_roubo_{i}")
+                        
+                        self.tabuleiro.instanciarCartas(
+                            id=id_carta,
+                            pontos=carta_unica['pontos'],
+                            nivel=carta_unica['nivel'],
+                            pedras=carta_unica['pedras'],
+                            cartaDeRoubo=True,
+                            bonus=carta_unica['bonus'],
+                            habilitada=carta_unica['habilitada']
+                        )
+                        self.carta_imgs[id_carta] = carta_unica['img_tk']
 
         diretorios_cartas = {
             NiveisEnum.NIVEL1: Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-1"),
@@ -324,7 +366,6 @@ class TelaJogo:
             random.Random(seed + baralho.nivel.value).shuffle(baralho.cartas)
 
         self.tabuleiro.inicializar_cartas_tabuleiro()
-        
 
     def carregarBotoes(self):
         """Carrega e redimensiona as imagens dos botões"""
@@ -456,31 +497,447 @@ class TelaJogo:
 
     def clickOfertaDeTroca(self):
         """Ação ao clicar no botão 'Oferta de Troca'"""
-        messagebox.showinfo("Oferta de Troca", "Selecione as pedras que deseja trocar.")
+        if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
+            messagebox.showinfo("Não é sua vez", "Você só pode fazer oferta de troca no seu turno.")
+            return
+            
+        # Verifica se o jogador tem pedras para trocar
+        pedras_local = self.tabuleiro.jogadorLocal.pegarPedras()
+        pedras_remoto = self.tabuleiro.jogadorRemoto.pegarPedras()
+        
+        pedras_disponiveis_local = {pedra: qtd for pedra, qtd in pedras_local.items() if qtd > 0}
+        pedras_disponiveis_remoto = {pedra: qtd for pedra, qtd in pedras_remoto.items() if qtd > 0}
+        
+        if not pedras_disponiveis_local:
+            messagebox.showinfo("Sem pedras", "Você não tem pedras para trocar.")
+            return
+            
+        if not pedras_disponiveis_remoto:
+            messagebox.showinfo("Oponente sem pedras", "Seu oponente não tem pedras para trocar.")
+            return
+        
+        # Desabilita outros botões
         self.desabilitarBotaoComprarPedras()
+        self.desabilitarBotaoComprarCarta()
         self.desabilitarReservarCarta()
-        self.desabilitarBotaoComprarPedras()
         self.desabilitarPedras()
-        self.habilitarCartas()
+        self.desabilitarCartas()
+        
+        # Habilita o modo de oferta de troca
+        self.modo_oferta_troca = True
         self.habilitarDesfazerJogada()
+        
+        # Mostra popup para seleção
+        self.exibirPopupOfertaTroca(pedras_disponiveis_local, pedras_disponiveis_remoto)
 
-        self.exibirPopupTroca()
+    def exibirPopupOfertaTroca(self, pedras_local, pedras_remoto):
+        """Exibe popup para seleção de pedras na oferta de troca"""
+        popup = Toplevel(self.root)
+        popup.title("Oferta de Troca")
+        popup.geometry("500x500")
+        popup.resizable(False, False)
+        popup.transient(self.root)
+        
+        # Frame principal
+        main_frame = Frame(popup, bg="white")
+        main_frame.pack(fill=BOTH, expand=True, padx=20, pady=20)
+        
+        # Título
+        Label(main_frame, text="Selecione as pedras para troca", 
+              font=("Arial", 16, "bold"), bg="white").pack(pady=(0, 20))
+        
+        # Frame para mostrar seleções
+        frame_selecoes = Frame(main_frame, bg="white")
+        frame_selecoes.pack(fill=X, pady=10)
+        
+        # Label para mostrar pedra local selecionada
+        self.label_pedra_local = Label(frame_selecoes, text="Sua pedra: Nenhuma selecionada", 
+                                      font=("Arial", 12), bg="white", fg="blue")
+        self.label_pedra_local.pack()
+        
+        # Label para mostrar pedra remoto selecionada
+        self.label_pedra_remoto = Label(frame_selecoes, text="Pedra do oponente: Nenhuma selecionada", 
+                                       font=("Arial", 12), bg="white", fg="red")
+        self.label_pedra_remoto.pack()
+        
+        # Frame para pedras do jogador local
+        frame_local = Frame(main_frame, bg="white")
+        frame_local.pack(fill=X, pady=10)
+        
+        Label(frame_local, text="Suas pedras:", font=("Arial", 12, "bold"), bg="white").pack(anchor=W)
+        
+        frame_pedras_local = Frame(frame_local, bg="white")
+        frame_pedras_local.pack(fill=X, pady=5)
+        
+        self.pedra_local_selecionada = None
+        self.pedra_remoto_selecionada = None
+        
+        # Botões para pedras do jogador local
+        for pedra, qtd in pedras_local.items():
+            if qtd > 0:
+                frame_pedra = Frame(frame_pedras_local, bg="white")
+                frame_pedra.pack(side=LEFT, padx=5)
+                
+                # Carrega imagem da pedra
+                try:
+                    img = Image.open(f"./resources/pedras/{pedra.name.lower()}.png")
+                    img = img.resize((40, 40), Image.Resampling.LANCZOS)
+                    img_tk = ImageTk.PhotoImage(img)
+                    
+                    btn = Button(frame_pedra, image=img_tk, 
+                               command=lambda p=pedra: self.selecionarPedraLocal(p, popup),
+                               relief=FLAT, bg="white")
+                    btn.image = img_tk  # Mantém referência
+                    btn.pack()
+                    
+                    Label(frame_pedra, text=f"{qtd}", font=("Arial", 10), bg="white").pack()
+                except Exception as e:
+                    print(f"Erro ao carregar imagem da pedra {pedra.name}: {e}")
+                    btn = Button(frame_pedra, text=f"{pedra.name}\n({qtd})", 
+                               command=lambda p=pedra: self.selecionarPedraLocal(p, popup),
+                               relief=RAISED, bg="lightblue")
+                    btn.pack()
+        
+        # Frame para pedras do jogador remoto
+        frame_remoto = Frame(main_frame, bg="white")
+        frame_remoto.pack(fill=X, pady=10)
+        
+        Label(frame_remoto, text="Pedras do oponente:", font=("Arial", 12, "bold"), bg="white").pack(anchor=W)
+        
+        frame_pedras_remoto = Frame(frame_remoto, bg="white")
+        frame_pedras_remoto.pack(fill=X, pady=5)
+        
+        # Botões para pedras do jogador remoto
+        for pedra, qtd in pedras_remoto.items():
+            if qtd > 0:
+                frame_pedra = Frame(frame_pedras_remoto, bg="white")
+                frame_pedra.pack(side=LEFT, padx=5)
+                
+                # Carrega imagem da pedra
+                try:
+                    img = Image.open(f"./resources/pedras/{pedra.name.lower()}.png")
+                    img = img.resize((40, 40), Image.Resampling.LANCZOS)
+                    img_tk = ImageTk.PhotoImage(img)
+                    
+                    btn = Button(frame_pedra, image=img_tk, 
+                               command=lambda p=pedra: self.selecionarPedraRemoto(p, popup),
+                               relief=FLAT, bg="white")
+                    btn.image = img_tk  # Mantém referência
+                    btn.pack()
+                    
+                    Label(frame_pedra, text=f"{qtd}", font=("Arial", 10), bg="white").pack()
+                except Exception as e:
+                    print(f"Erro ao carregar imagem da pedra {pedra.name}: {e}")
+                    btn = Button(frame_pedra, text=f"{pedra.name}\n({qtd})", 
+                               command=lambda p=pedra: self.selecionarPedraRemoto(p, popup),
+                               relief=RAISED, bg="lightcoral")
+                    btn.pack()
+        
+        # Botões de ação
+        frame_botoes = Frame(main_frame, bg="white")
+        frame_botoes.pack(fill=X, pady=20)
+        
+        Button(frame_botoes, text="Cancelar", command=lambda: [popup.destroy(), self.cancelarOfertaTroca()],
+               font=("Arial", 12), bg="lightgray").pack(side=LEFT, padx=5)
+        
+        Button(frame_botoes, text="Enviar Oferta", command=lambda: [popup.destroy(), self.enviarOfertaTroca()],
+               font=("Arial", 12), bg="lightgreen").pack(side=RIGHT, padx=5)
+        
+        # Configura o popup após todos os widgets serem criados
+        popup.update_idletasks()
+        popup.focus_set()
+        
+        # Tenta definir o grab com tratamento de erro
+        try:
+            popup.grab_set()
+        except Exception as e:
+            print(f"Erro ao definir grab do popup: {e}")
+            # Continua sem o grab se falhar
+
+    def selecionarPedraLocal(self, pedra, popup):
+        """Seleciona uma pedra do jogador local para troca"""
+        self.pedra_local_selecionada = pedra
+        # Atualiza o label para mostrar a seleção
+        self.label_pedra_local.config(text=f"Sua pedra: {pedra.name} ✓", fg="green")
+        messagebox.showinfo("Pedra Selecionada", f"Você selecionou {pedra.name} para trocar. Agora selecione uma pedra do oponente.")
+
+    def selecionarPedraRemoto(self, pedra, popup):
+        """Seleciona uma pedra do jogador remoto para troca"""
+        if self.pedra_local_selecionada is None:
+            messagebox.showwarning("Seleção Incompleta", "Primeiro selecione uma pedra sua para trocar.")
+            return
+            
+        self.pedra_remoto_selecionada = pedra
+        # Atualiza o label para mostrar a seleção
+        self.label_pedra_remoto.config(text=f"Pedra do oponente: {pedra.name} ✓", fg="green")
+        messagebox.showinfo("Pedra Selecionada", f"Você selecionou {pedra.name} do oponente para trocar. Clique em 'Enviar Oferta' para finalizar.")
+        # NÃO fecha o popup automaticamente - deixa o usuário clicar em "Enviar Oferta"
+
+    def cancelarOfertaTroca(self):
+        """Cancela a oferta de troca"""
+        self.modo_oferta_troca = False
+        self.pedra_local_selecionada = None
+        self.pedra_remoto_selecionada = None
+        
+        # Reabilita os botões
+        if self.tabuleiro.jogadorLocal.jogadorEmTurno:
+            self.habilitarJogadas()
+        self.desabilitarDesfazerJogada()
+        
+        messagebox.showinfo("Oferta Cancelada", "A oferta de troca foi cancelada.")
+
+    def enviarOfertaTroca(self):
+        """Envia a oferta de troca"""
+        if self.pedra_local_selecionada and self.pedra_remoto_selecionada:
+            try:
+                # Cria a oferta para o oponente
+                oferta = {
+                    'pedra_local': self.pedra_local_selecionada,
+                    'pedra_remoto': self.pedra_remoto_selecionada,
+                    'jogador_origem': 'local'  # Indica que veio do jogador local
+                }
+                
+                print(f"Oferta criada: {oferta}")
+                print(f"Tipo pedra_local: {type(self.pedra_local_selecionada)}")
+                print(f"Tipo pedra_remoto: {type(self.pedra_remoto_selecionada)}")
+                
+                # Armazena a oferta no tabuleiro para ser enviada
+                self.tabuleiro.oferta_pendente = oferta
+                
+                messagebox.showinfo("Oferta Enviada", 
+                                  f"Oferta enviada: sua {self.pedra_local_selecionada.name} pela {self.pedra_remoto_selecionada.name} do oponente.")
+                
+                # Finaliza a jogada
+                self.finalizarOfertaTroca()
+            except Exception as e:
+                print(f"Erro ao criar/enviar oferta: {e}")
+                import traceback
+                traceback.print_exc()
+                messagebox.showerror("Erro", f"Erro ao enviar oferta: {e}")
+        else:
+            messagebox.showwarning("Seleção Incompleta", "Você precisa selecionar uma pedra sua e uma pedra do oponente antes de enviar a oferta.")
+
+    def finalizarOfertaTroca(self):
+        """Finaliza a oferta de troca e passa o turno"""
+        self.modo_oferta_troca = False
+        self.pedra_local_selecionada = None
+        self.pedra_remoto_selecionada = None
+        
+        # Garante que não há oferta pendente no tabuleiro se não foi enviada
+        if not hasattr(self.tabuleiro, 'oferta_pendente') or self.tabuleiro.oferta_pendente is None:
+            self.tabuleiro.oferta_pendente = None
+        
+        # Troca o turno
+        self.tabuleiro.jogadorLocal.jogadorEmTurno = False
+        self.tabuleiro.jogadorRemoto.jogadorEmTurno = True
+        
+        # Desabilita jogadas do jogador local
+        self.desabilitarJogadas()
+        
+        self.atualizarTabuleiro(self.tabuleiro)
+        self.finalizar_jogada_callback(self.tabuleiro)
+
+    def verificarOfertaPendente(self):
+        """Verifica se há uma oferta pendente para o jogador atual"""
+        if not self.tabuleiro.oferta_pendente:
+            print("Nenhuma oferta pendente encontrada")
+            return
+            
+        print(f"Verificando oferta pendente: {self.tabuleiro.oferta_pendente}")
+        print(f"Jogador local em turno: {self.tabuleiro.jogadorLocal.jogadorEmTurno}")
+        print(f"Jogador remoto em turno: {self.tabuleiro.jogadorRemoto.jogadorEmTurno}")
+        
+        # Verifica se a oferta é para o jogador atual
+        # Como os jogadores são invertidos quando recebidos do servidor,
+        # se o jogador local está em turno, a oferta deve ter vindo do remoto (que agora é local)
+        # e vice-versa
+        oferta_para_jogador_atual = (
+            (self.tabuleiro.jogadorLocal.jogadorEmTurno and 
+             self.tabuleiro.oferta_pendente['jogador_origem'] == 'local') or
+            (self.tabuleiro.jogadorRemoto.jogadorEmTurno and 
+             self.tabuleiro.oferta_pendente['jogador_origem'] == 'remoto')
+        )
+        
+        print(f"Oferta para jogador atual: {oferta_para_jogador_atual}")
+        
+        if oferta_para_jogador_atual:
+            print(f"Oferta pendente encontrada para jogador atual: {self.tabuleiro.oferta_pendente}")
+            
+            # Armazena a oferta localmente para processamento
+            self.oferta_pendente = self.tabuleiro.oferta_pendente
+            # Limpa a oferta do tabuleiro para evitar reprocessamento
+            self.tabuleiro.oferta_pendente = None
+            
+            self.exibirPopupRespostaOferta()
+
+    def exibirPopupRespostaOferta(self):
+        """Exibe popup para resposta da oferta de troca"""
+        oferta = self.oferta_pendente
+        
+        popup = Toplevel(self.root)
+        popup.title("Oferta de Troca Recebida")
+        popup.geometry("500x400")
+        popup.resizable(False, False)
+        popup.transient(self.root)
+        
+        # Frame principal
+        main_frame = Frame(popup, bg="white")
+        main_frame.pack(fill=BOTH, expand=True, padx=20, pady=20)
+        
+        # Título
+        Label(main_frame, text="Oferta de Troca Recebida", 
+              font=("Arial", 16, "bold"), bg="white").pack(pady=(0, 20))
+        
+        # Descrição da oferta
+        descricao = f"O oponente quer trocar:"
+        Label(main_frame, text=descricao, font=("Arial", 12), bg="white", justify=CENTER).pack(pady=10)
+        
+        # Frame para mostrar as pedras com imagens
+        frame_pedras = Frame(main_frame, bg="white")
+        frame_pedras.pack(pady=20)
+        
+        # Pedra do oponente (o que ele oferece)
+        frame_oponente = Frame(frame_pedras, bg="white")
+        frame_oponente.pack(side=LEFT, padx=30)
+        
+        Label(frame_oponente, text="Oponente oferece:", font=("Arial", 12, "bold"), bg="white").pack(pady=(0, 10))
+        
+        try:
+            img = Image.open(f"./resources/pedras/{oferta['pedra_local'].name.lower()}.png")
+            img = img.resize((80, 80), Image.Resampling.LANCZOS)
+            img_tk = ImageTk.PhotoImage(img)
+            
+            Label(frame_oponente, image=img_tk, bg="white").pack()
+            Label(frame_oponente, text=oferta['pedra_local'].name, font=("Arial", 12), bg="white").pack()
+        except Exception as e:
+            Label(frame_oponente, text=oferta['pedra_local'].name, font=("Arial", 14), bg="lightblue", 
+                  relief=RAISED, padx=20, pady=10).pack()
+        
+        # Seta
+        Label(frame_pedras, text="↔", font=("Arial", 24, "bold"), bg="white", fg="orange").pack(side=LEFT, padx=20)
+        
+        # Sua pedra (o que você dá)
+        frame_sua = Frame(frame_pedras, bg="white")
+        frame_sua.pack(side=LEFT, padx=30)
+        
+        Label(frame_sua, text="Sua pedra:", font=("Arial", 12, "bold"), bg="white").pack(pady=(0, 10))
+        
+        try:
+            img = Image.open(f"./resources/pedras/{oferta['pedra_remoto'].name.lower()}.png")
+            img = img.resize((80, 80), Image.Resampling.LANCZOS)
+            img_tk = ImageTk.PhotoImage(img)
+            
+            Label(frame_sua, image=img_tk, bg="white").pack()
+            Label(frame_sua, text=oferta['pedra_remoto'].name, font=("Arial", 12), bg="white").pack()
+        except Exception as e:
+            Label(frame_sua, text=oferta['pedra_remoto'].name, font=("Arial", 14), bg="lightcoral", 
+                  relief=RAISED, padx=20, pady=10).pack()
+        
+        # Botões de resposta com efeitos visuais
+        frame_botoes = Frame(main_frame, bg="white")
+        frame_botoes.pack(fill=X, pady=30)
+        
+        # Botão Recusar
+        btn_recusar = Button(frame_botoes, text="RECUSAR", 
+                           command=lambda: [popup.destroy(), self.recusarOfertaTroca()],
+                           font=("Arial", 14, "bold"), bg="red", fg="white", 
+                           relief=RAISED, padx=30, pady=10, cursor="hand2")
+        btn_recusar.pack(side=LEFT, padx=10, expand=True)
+        
+        # Botão Aceitar
+        btn_aceitar = Button(frame_botoes, text="ACEITAR", 
+                           command=lambda: [popup.destroy(), self.aceitarOfertaTroca()],
+                           font=("Arial", 14, "bold"), bg="green", fg="white", 
+                           relief=RAISED, padx=30, pady=10, cursor="hand2")
+        btn_aceitar.pack(side=RIGHT, padx=10, expand=True)
+        
+        # Efeitos de hover nos botões
+        def on_enter_btn(event, btn, cor_original, cor_hover):
+            btn.configure(bg=cor_hover)
+        
+        def on_leave_btn(event, btn, cor_original):
+            btn.configure(bg=cor_original)
+        
+        btn_recusar.bind("<Enter>", lambda e: on_enter_btn(e, btn_recusar, "red", "#ff4444"))
+        btn_recusar.bind("<Leave>", lambda e: on_leave_btn(e, btn_recusar, "red"))
+        btn_aceitar.bind("<Enter>", lambda e: on_enter_btn(e, btn_aceitar, "green", "#44ff44"))
+        btn_aceitar.bind("<Leave>", lambda e: on_leave_btn(e, btn_aceitar, "green"))
+        
+        # Configura o popup após todos os widgets serem criados
+        popup.update_idletasks()
+        popup.focus_set()
+        
+        # Tenta definir o grab com tratamento de erro
+        try:
+            popup.grab_set()
+        except Exception as e:
+            print(f"Erro ao definir grab do popup de resposta: {e}")
+
+    def aceitarOfertaTroca(self):
+        """Aceita a oferta de troca"""
+        oferta = self.oferta_pendente
+        
+        # Executa a troca: o jogador local recebe a pedra do oponente e dá sua pedra
+        self.tabuleiro.jogadorLocal.removerPedras({oferta['pedra_remoto']: 1})
+        self.tabuleiro.jogadorLocal.adicionarPedraNaMao(oferta['pedra_local'], 1)
+        
+        # Remove a oferta pendente
+        self.oferta_pendente = None
+        
+        messagebox.showinfo("Troca Aceita", f"Troca realizada: você recebeu {oferta['pedra_local'].name} e deu {oferta['pedra_remoto'].name}.")
+        
+        # Atualiza o tabuleiro
+        self.desenharTabuleiro()
+
+    def recusarOfertaTroca(self):
+        """Recusa a oferta de troca"""
+        oferta = self.oferta_pendente
+        
+        # Remove a oferta pendente
+        self.oferta_pendente = None
+        
+        messagebox.showinfo("Troca Recusada", "Você recusou a oferta de troca.")
+        
+        # Atualiza o tabuleiro
+        self.desenharTabuleiro()
 
     def clickPedra(self, pedra: PedrasEnum):
+        """Método chamado quando uma pedra é clicada no tabuleiro"""
+        # Verifica se as pedras estão habilitadas para seleção
+        if not self.pedras_habilitadas:
+            messagebox.showinfo("Pedras não habilitadas", "Clique em 'Comprar Pedras' para habilitar a seleção de pedras.")
+            return
+        
+        # Ouro não pode ser comprado diretamente
+        if pedra == PedrasEnum.OURO:
+            messagebox.showinfo("Pedra de Ouro", "Pedras de ouro só podem ser obtidas ao reservar cartas!")
+            return
+            
         self.pedrasSelecionadas.append(pedra)
+        print(f"Pedra selecionada: {pedra.name}. Total: {len(self.pedrasSelecionadas)}")
 
-        if len(self.pedrasSelecionadas) == 2:
+        # Aplica efeito visual de seleção
+        self.aplicar_efeito_selecao_pedra(pedra)
+        self.pedras_selecionadas_visuais.add(pedra)
+
+        if len(self.pedrasSelecionadas) == 1:
+            # Primeira pedra selecionada - mostra opções
+            opcoes = f"Você selecionou {pedra.name}.\n\nAgora você pode:\n• Selecionar mais uma pedra {pedra.name} (para ter 2 iguais)\n• Selecionar duas pedras diferentes (para ter 3 diferentes)"
+            messagebox.showinfo("Primeira Pedra Selecionada", opcoes)
+            
+        elif len(self.pedrasSelecionadas) == 2:
             if self.pedrasSelecionadas[0] == self.pedrasSelecionadas[1]:
                 messagebox.showinfo(
                     "Pedras Selecionadas",
-                    f"Você selecionou 2 pedras do tipo {pedra.name}."
+                    f"Você selecionou 2 pedras do tipo {pedra.name}.\nClique em 'Finalizar Jogada' para confirmar."
                 )
                 self.habilitarBotaoFinalizarJogada()
-                self.desabilitarPedras()
+                self.desabilitarPedras()  # Desabilita imediatamente
+                print("2 pedras iguais selecionadas - pedras desabilitadas")
             else:
                 messagebox.showinfo(
                     "Pedras Selecionadas",
-                    f"Você selecionou 2 pedras diferentes: {self.pedrasSelecionadas[0].name} e {self.pedrasSelecionadas[1].name}. Agora selecione uma terceira pedra diferente."
+                    f"Você selecionou 2 pedras diferentes: {self.pedrasSelecionadas[0].name} e {self.pedrasSelecionadas[1].name}.\nAgora selecione uma terceira pedra diferente."
                 )
         elif len(self.pedrasSelecionadas) == 3:
             p1, p2, p3 = self.pedrasSelecionadas
@@ -489,15 +946,20 @@ class TelaJogo:
                     "Erro",
                     "A terceira pedra selecionada não pode ser igual às anteriores. Tente novamente."
                 )
+                # Remove a última pedra e seu efeito visual
                 self.pedrasSelecionadas.pop()
+                self.remover_efeito_selecao_pedra(p3)
+                self.pedras_selecionadas_visuais.discard(p3)
+                print("Pedra removida - seleção inválida")
             else:
                 messagebox.showinfo(
                     "Pedras Selecionadas",
-                    f"Você selecionou 3 pedras diferentes: {p1.name}, {p2.name}, e {p3.name}."
+                    f"Você selecionou 3 pedras diferentes: {p1.name}, {p2.name}, e {p3.name}.\nClique em 'Finalizar Jogada' para confirmar."
                 )
                 self.habilitarBotaoFinalizarJogada()
-                self.desabilitarPedras()
-        
+                self.desabilitarPedras()  # Desabilita imediatamente
+                print("3 pedras diferentes selecionadas - pedras desabilitadas")
+
     def notificarJogadaInvalida(self, mensagem: str):
         """Exibe uma mensagem de erro quando uma jogada inválida é realizada"""
         messagebox.showerror(
@@ -508,6 +970,11 @@ class TelaJogo:
 
     def clickCarta(self, indiceCarta: int):
         """Método chamado quando uma carta é clicada no tabuleiro"""
+        # Verifica se as cartas estão habilitadas para seleção
+        if not self.cartas_habilitadas:
+            messagebox.showinfo("Cartas não habilitadas", "Clique em 'Comprar Carta' ou 'Reservar Carta' para habilitar a seleção de cartas.")
+            return
+            
         # Verifica se há uma carta no índice selecionado
         if indiceCarta >= len(self.tabuleiro.cartasNoTabuleiro) or self.tabuleiro.cartasNoTabuleiro[indiceCarta] is None:
             self.notificarJogadaInvalida("Não há carta nesta posição!")
@@ -516,37 +983,83 @@ class TelaJogo:
         carta = self.tabuleiro.cartasNoTabuleiro[indiceCarta]
         self.cartaSelecionada = carta
 
-        # Verifica se o jogador tem pedras suficientes
-        if not self.tabuleiro.verificarPedrasSuficientes(carta):
+        # Verifica se o jogador tem pedras suficientes apenas se não estiver no modo de reserva
+        if not self.modo_reserva and not self.tabuleiro.verificarPedrasSuficientes(carta):
             self.notificarJogadaInvalida("Você não tem pedras suficientes para comprar esta carta!")
             self.cartaSelecionada = None
             return
 
+        # Mostra mensagem de confirmação da seleção
+        if self.modo_reserva:
+            messagebox.showinfo("Carta Selecionada", f"Carta selecionada para reserva! Clique em 'Finalizar Jogada' para confirmar.")
+        else:
+            messagebox.showinfo("Carta Selecionada", f"Carta selecionada para compra! Clique em 'Finalizar Jogada' para confirmar.")
+
         self.habilitarBotaoFinalizarJogada()
-        
+
     def reporTabuleiro(self, nivel: NiveisEnum):
+        """Repõe uma carta no tabuleiro quando uma carta é removida"""
         try:
-            if not self.tabuleiro.baralhos[nivel.value - 1].temCartas():
+            print(f"=== REPOSIÇÃO DE CARTA ===")
+            print(f"Tentando repor carta do nível {nivel.value}")
+            print(f"Tipo do nível: {type(nivel)}")
+            print(f"Valor do nível: {nivel.value}")
+            
+            # Verifica se o baralho existe
+            if nivel.value - 1 >= len(self.tabuleiro.baralhos):
+                print(f"ERRO: Baralho nível {nivel.value} não existe. Baralhos disponíveis: {len(self.tabuleiro.baralhos)}")
                 return
+            
+            baralho = self.tabuleiro.baralhos[nivel.value - 1]
+            print(f"Baralho encontrado: {baralho.nivel.name}")
+            print(f"Cartas no baralho: {len(baralho.cartas)}")
+            
+            # Encontra a posição vazia no nível correspondente
             inicio_nivel = (nivel.value - 1) * 4
-            for i in range(inicio_nivel, inicio_nivel + 4):
+            fim_nivel = inicio_nivel + 4
+            
+            print(f"Procurando posições vazias entre {inicio_nivel} e {fim_nivel}")
+            print(f"Estado atual do tabuleiro: {[c.id if c else None for c in self.tabuleiro.cartasNoTabuleiro]}")
+            
+            # Procura uma posição vazia no nível
+            for i in range(inicio_nivel, fim_nivel):
                 if self.tabuleiro.cartasNoTabuleiro[i] is None:
-                    nova_carta = self.tabuleiro.baralhos[nivel.value - 1].pegarCartaDoBaralho()
-                    if nova_carta is None:
+                    print(f"Posição {i} está vazia, tentando repor")
+                    # Pega uma nova carta do baralho correspondente
+                    nova_carta = baralho.pegarCartaDoBaralho()
+                    if nova_carta is not None:
+                        print(f"Nova carta obtida: {nova_carta.id} (nível {nova_carta.nivel.name})")
+                        # Se for carta de roubo, não coloca no tabuleiro
+                        if nova_carta.cartaDeRoubo:
+                            print("Carta de roubo obtida, adicionando ao jogador")
+                            # Adiciona à área do jogador local
+                            self.tabuleiro.jogadorLocal.adicionarCartaDeRoubo(nova_carta)
+                            # Tenta repor outra carta
+                            continue
+                        else:
+                            print(f"Colocando carta {nova_carta.id} na posição {i}")
+                            # Coloca a carta no tabuleiro
+                            self.tabuleiro.cartasNoTabuleiro[i] = nova_carta
+                            print(f"Reposição bem-sucedida! Nova carta colocada na posição {i}")
+                            break
+                    else:
+                        print(f"Não há mais cartas no baralho nível {nivel.value}")
+                        # Se não há mais cartas no baralho, para de tentar repor
                         break
-                    # Se for carta de roubo, vai para a área do jogador
-                    if nova_carta.cartaDeRoubo:
-                        self.tabuleiro.jogadorLocal.adicionarCartaDeRoubo(nova_carta)
-                        # Não coloca no tabuleiro, tenta repor outra carta
-                        continue
-                    self.tabuleiro.cartasNoTabuleiro[i] = nova_carta
-                    break
+                else:
+                    print(f"Posição {i} não está vazia, carta: {self.tabuleiro.cartasNoTabuleiro[i].id}")
+            
+            print(f"Estado final do tabuleiro: {[c.id if c else None for c in self.tabuleiro.cartasNoTabuleiro]}")
+            print(f"=== FIM REPOSIÇÃO ===")
+            
         except Exception as e:
             print(f"Erro ao repor tabuleiro: {e}")
-        
+            import traceback
+            traceback.print_exc()
+
     def desenharCartasJogadores(self):
         """Desenha as cartas dos jogadores nas áreas específicas"""
-        # Jogador local (embaixo, centralizado) - mostra apenas pontos
+        # Jogador local (embaixo, centralizado) - mostra cartas cortadas
         cartas_local = self.tabuleiro.jogadorLocal.pegarCartas()
         if cartas_local:
             # Remove cartas de roubo da lista (elas são tratadas separadamente)
@@ -567,16 +1080,59 @@ class TelaJogo:
                     x = x_base + (coluna - 1) * 80
                     y = y_base - linha * 30
                     
-                    # Desenha apenas o texto dos pontos
-                    self.canvas.create_text(
-                        x, y, 
-                        text=str(carta.pontos), 
-                        fill="white", 
-                        font=("Arial", 16, "bold"),
-                        tags=f"carta_jogador_local_{i}"
-                    )
+                    # Carrega a imagem da carta
+                    img_tk = self.get_carta_img(carta)
+                    if img_tk:
+                        # Cria uma versão cortada da carta (mostra apenas a parte superior)
+                        try:
+                            # Encontra o arquivo da carta para recriar a imagem
+                            diretorios_cartas = [
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-1"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-2"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-3"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-de-roubo"), True),
+                            ]
+                            
+                            for diretorio, is_roubo in diretorios_cartas:
+                                for carta_img in diretorio.glob("*.png"):
+                                    nome = carta_img.stem
+                                    id_carta, pontos, pedras, cartaDeRoubo, bonus, habilitada = self.extrair_dados_carta(carta_img, None, is_roubo)
+                                    
+                                    if (carta.pontos == pontos and 
+                                        carta.pedras == pedras and 
+                                        carta.cartaDeRoubo == cartaDeRoubo and 
+                                        carta.bonus == bonus):
+                                        
+                                        # Carrega a imagem e corta (mostra apenas a parte superior)
+                                        pil_img = Image.open(carta_img).resize((self.CARD_WIDTH * 10, self.CARD_HEIGHT * 10), Image.Resampling.LANCZOS)
+                                        # Corta apenas a parte superior da carta (primeiros 30% da altura)
+                                        altura_corte = int(self.CARD_HEIGHT * 10 * 0.3)
+                                        pil_img_cortada = pil_img.crop((0, 0, self.CARD_WIDTH * 10, altura_corte))
+                                        img_tk_cortada = ImageTk.PhotoImage(pil_img_cortada)
+                                        
+                                        # Desenha a carta cortada
+                                        self.canvas.create_image(
+                                            x, y, 
+                                            image=img_tk_cortada, 
+                                            anchor='s',
+                                            tags=f"carta_jogador_local_{i}"
+                                        )
+                                        break
+                                else:
+                                    continue
+                                break
+                        except Exception as e:
+                            print(f"Erro ao criar carta cortada para jogador local: {e}")
+                            # Fallback: mostra apenas os pontos
+                            self.canvas.create_text(
+                                x, y, 
+                                text=str(carta.pontos), 
+                                fill="white", 
+                                font=("Arial", 16, "bold"),
+                                tags=f"carta_jogador_local_{i}"
+                            )
 
-        # Jogador remoto (em cima, centralizado, invertido) - mostra apenas pontos
+        # Jogador remoto (em cima, centralizado, invertido) - mostra cartas rotacionadas e cortadas
         cartas_remoto = self.tabuleiro.jogadorRemoto.pegarCartas()
         if cartas_remoto:
             # Remove cartas de roubo da lista
@@ -597,14 +1153,58 @@ class TelaJogo:
                     x = x_base + (coluna - 1) * 80
                     y = y_base + linha * 30
                     
-                    # Desenha apenas o texto dos pontos
-                    self.canvas.create_text(
-                        x, y, 
-                        text=str(carta.pontos), 
-                        fill="white", 
-                        font=("Arial", 16, "bold"),
-                        tags=f"carta_jogador_remoto_{i}"
-                    )
+                    # Carrega a imagem da carta
+                    img_tk = self.get_carta_img(carta)
+                    if img_tk:
+                        # Cria uma versão rotacionada e cortada da carta
+                        try:
+                            # Encontra o arquivo da carta para recriar a imagem
+                            diretorios_cartas = [
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-1"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-2"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-nivel-3"), False),
+                                (Path("./resources/cartas/cartas-tabuleiro/cartas-de-roubo"), True),
+                            ]
+                            
+                            for diretorio, is_roubo in diretorios_cartas:
+                                for carta_img in diretorio.glob("*.png"):
+                                    nome = carta_img.stem
+                                    id_carta, pontos, pedras, cartaDeRoubo, bonus, habilitada = self.extrair_dados_carta(carta_img, None, is_roubo)
+                                    
+                                    if (carta.pontos == pontos and 
+                                        carta.pedras == pedras and 
+                                        carta.cartaDeRoubo == cartaDeRoubo and 
+                                        carta.bonus == bonus):
+                                        
+                                        # Carrega a imagem, rotaciona 180° e corta
+                                        pil_img = Image.open(carta_img).resize((self.CARD_WIDTH * 10, self.CARD_HEIGHT * 10), Image.Resampling.LANCZOS)
+                                        pil_img = pil_img.transpose(Image.ROTATE_180)
+                                        # Corta apenas a parte superior da carta rotacionada (primeiros 30% da altura)
+                                        altura_corte = int(self.CARD_HEIGHT * 10 * 0.3)
+                                        pil_img_cortada = pil_img.crop((0, 0, self.CARD_WIDTH * 10, altura_corte))
+                                        img_tk_cortada = ImageTk.PhotoImage(pil_img_cortada)
+                                        
+                                        # Desenha a carta rotacionada e cortada
+                                        self.canvas.create_image(
+                                            x, y, 
+                                            image=img_tk_cortada, 
+                                            anchor='n',
+                                            tags=f"carta_jogador_remoto_{i}"
+                                        )
+                                        break
+                                else:
+                                    continue
+                                break
+                        except Exception as e:
+                            print(f"Erro ao criar carta rotacionada para jogador remoto: {e}")
+                            # Fallback: mostra apenas os pontos
+                            self.canvas.create_text(
+                                x, y, 
+                                text=str(carta.pontos), 
+                                fill="white", 
+                                font=("Arial", 16, "bold"),
+                                tags=f"carta_jogador_remoto_{i}"
+                            )
 
     def desenharCartasRouboJogador(self):
         """Desenha as cartas de roubo dos jogadores"""
@@ -680,8 +1280,10 @@ class TelaJogo:
                     if img_tk:
                         x = deck_x + self.CARD_WIDTH + self.DECK_TO_CARDS_GAP + i * (self.CARD_WIDTH + self.HORIZONTAL_GAP)
                         self.canvas.create_image(x, y_pos, image=img_tk, anchor=NW, tags=f"carta_{nivel.name}_{idx}")
-                        # Só habilita clique se for o turno do jogador
-                        if self.tabuleiro.jogadorLocal.jogadorEmTurno:
+                        # Só habilita clique se for o turno do jogador E as cartas estiverem habilitadas
+                        if self.tabuleiro.jogadorLocal.jogadorEmTurno and self.cartas_habilitadas:
+                            # Configura cursor para cartas clicáveis
+                            self.configurar_cursor_clicavel(f"carta_{nivel.name}_{idx}")
                             self.canvas.tag_bind(f"carta_{nivel.name}_{idx}", "<Button-1>", lambda event, idx=idx: self.clickCarta(idx))
 
         self.tabuleiro.atualizarPedrasNoTabuleiro()
@@ -690,11 +1292,12 @@ class TelaJogo:
         self.desenharInfosJogadores()
         self.desenharCartasJogadores()  # Adiciona o desenho das cartas dos jogadores
         self.desenharCartasRouboJogador()  # Adiciona o desenho das cartas de roubo dos jogadores
+        self.desenharCartasReservadas()  # Adiciona o desenho das cartas reservadas
         self.desabilitarBotaoFinalizarJogada()
         self.desabilitarDesfazerJogada()
 
     def desenharBotoes(self):
-        """Desenha os botões na tela"""
+        """Desenha os botões na tela com efeitos visuais"""
         h = 1080
         off = 200
         botoes_pos = {
@@ -710,18 +1313,28 @@ class TelaJogo:
             if nome in botoes_pos:
                 x, y = botoes_pos[nome]
                 self.canvas.create_image(x, y, image=img, anchor=NW, tags=f"botao_{nome}")
+                
+                # Configura cursor e efeitos de clique
+                self.configurar_cursor_clicavel(f"botao_{nome}")
+                
                 if nome == "comprar_pedras":
-                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", lambda event: self.clickComprarPedras())
+                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", 
+                                       lambda event: [self.aplicar_efeito_clique_botao("comprar_pedras"), self.clickComprarPedras()])
                 elif nome == "comprar_carta":
-                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", lambda event: self.clickComprarCarta())
+                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", 
+                                       lambda event: [self.aplicar_efeito_clique_botao("comprar_carta"), self.clickComprarCarta()])
                 elif nome == "reservar_carta":
-                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", lambda event: self.clickReservarCarta())
+                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", 
+                                       lambda event: [self.aplicar_efeito_clique_botao("reservar_carta"), self.clickReservarCarta()])
                 elif nome == "oferta_de_troca":
-                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", lambda event: self.clickOfertaDeTroca())
+                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", 
+                                       lambda event: [self.aplicar_efeito_clique_botao("oferta_de_troca"), self.clickOfertaDeTroca()])
                 elif nome == "desfazer_jogada":
-                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", lambda event: self.clickDesfazerJogada())
+                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", 
+                                       lambda event: [self.aplicar_efeito_clique_botao("desfazer_jogada"), self.clickDesfazerJogada()])
                 elif nome == "finalizar_jogada":
-                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", lambda event: self.clickFinalizarJogada())
+                    self.canvas.tag_bind(f"botao_{nome}", "<Button-1>", 
+                                       lambda event: [self.aplicar_efeito_clique_botao("finalizar_jogada"), self.clickFinalizarJogada()])
 
     def habilitarBotaoComprarCarta(self):
         """Habilita o botão 'Comprar Carta'"""
@@ -844,21 +1457,27 @@ class TelaJogo:
 
     # Métodos para habilitar/desabilitar cartas
     def habilitarCartas(self):
-        """Habilita todas as cartas no tabuleiro"""
+        """Habilita todas as cartas no tabuleiro com efeitos visuais"""
+        self.cartas_habilitadas = True
         niveis = [NiveisEnum.NIVEL1, NiveisEnum.NIVEL2, NiveisEnum.NIVEL3]
         for nivel_idx, nivel in enumerate(niveis):
             for i in range(4):
                 idx = nivel_idx * 4 + i
                 carta = self.tabuleiro.cartasNoTabuleiro[idx]
                 if carta is not None:
-                    self.canvas.tag_bind(f"carta_{nivel.name}_{idx}", "<Button-1>", lambda event, idx=idx: self.clickCarta(idx))
+                    # Configura cursor para cartas clicáveis
+                    self.configurar_cursor_clicavel(f"carta_{nivel.name}_{idx}")
+                    
+                    self.canvas.tag_bind(f"carta_{nivel.name}_{idx}", "<Button-1>", 
+                                       lambda event, idx=idx: self.clickCarta(idx))
                     # Restaura a imagem normal da carta
                     img_tk = self.get_carta_img(carta)
                     if img_tk:
                         self.canvas.itemconfig(f"carta_{nivel.name}_{idx}", image=img_tk)
 
     def desabilitarCartas(self):
-        """Desabilita todas as cartas no tabuleiro e aplica transparência apenas quando necessário, sem nunca removê-las do canvas"""
+        """Desabilita todas as cartas no tabuleiro, aplicando transparência quando não for o turno"""
+        self.cartas_habilitadas = False
         if not hasattr(self, 'carta_imgs_transparentes'):
             self.carta_imgs_transparentes = {}
         niveis = [NiveisEnum.NIVEL1, NiveisEnum.NIVEL2, NiveisEnum.NIVEL3]
@@ -867,7 +1486,11 @@ class TelaJogo:
                 idx = nivel_idx * 4 + i
                 carta = self.tabuleiro.cartasNoTabuleiro[idx]
                 if carta is not None:
+                    # Remove cursor pointer e eventos de clique
                     self.canvas.tag_unbind(f"carta_{nivel.name}_{idx}", "<Button-1>")
+                    self.canvas.tag_unbind(f"carta_{nivel.name}_{idx}", "<Enter>")
+                    self.canvas.tag_unbind(f"carta_{nivel.name}_{idx}", "<Leave>")
+                    
                     # Aplica transparência apenas se não for o turno do jogador
                     if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
                         # Aplica transparência à carta
@@ -910,6 +1533,7 @@ class TelaJogo:
     # Métodos para habilitar/desabilitar pedras
     def habilitarPedras(self):
         """Habilita todas as pedras no tabuleiro"""
+        self.pedras_habilitadas = True
         for pedra in self.tabuleiro.pedrasNoTabuleiro.keys():
             self.canvas.tag_bind(f"pedra_{pedra.name}", "<Button-1>", lambda event, pedra=pedra: self.clickPedra(pedra))
             # Restaura a imagem normal da pedra
@@ -917,10 +1541,21 @@ class TelaJogo:
                 self.canvas.itemconfig(f"pedra_{pedra.name}", image=self.pedras[pedra])
 
     def desabilitarPedras(self):
-        """Desabilita todas as pedras no tabuleiro e aplica transparência"""
+        """Desabilita todas as pedras no tabuleiro, aplicando transparência quando não for o turno"""
+        self.pedras_habilitadas = False
         from model.enums.pedrasEnum import PedrasEnum
+        
+        # Remove efeitos visuais de seleção
+        for pedra in self.pedras_selecionadas_visuais:
+            self.remover_efeito_selecao_pedra(pedra)
+        self.pedras_selecionadas_visuais.clear()
+        
         for pedra in self.tabuleiro.pedrasNoTabuleiro.keys():
             self.canvas.tag_unbind(f"pedra_{pedra.name}", "<Button-1>")
+            # Remove cursor pointer
+            self.canvas.tag_unbind(f"pedra_{pedra.name}", "<Enter>")
+            self.canvas.tag_unbind(f"pedra_{pedra.name}", "<Leave>")
+            
             # Aplica transparência apenas se não for o turno do jogador
             if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
                 caminho = f"./resources/pedras/{pedra.name.lower()}.png"
@@ -935,6 +1570,10 @@ class TelaJogo:
                     self.pedras[pedra] = img_transp
                 except Exception as e:
                     print(f"Erro ao aplicar transparência na pedra {pedra.name}: {e}")
+            else:
+                # Se for o turno do jogador, garante que a imagem normal está sendo usada
+                if pedra in self.pedras:
+                    self.canvas.itemconfig(f"pedra_{pedra.name}", image=self.pedras[pedra])
 
     def avaliarVencedor(self):
         pontos1 = self.tabuleiro.jogadorLocal.pegarPontuacaoJogador()
@@ -1024,9 +1663,16 @@ class TelaJogo:
                     tags=f"pedra_{pedra.name}"  # Use PedraEnum name for the tag
                 )
                 
-                # Só habilita clique se for o turno do jogador
-                if self.tabuleiro.jogadorLocal.jogadorEmTurno:
-                    self.canvas.tag_bind(f"pedra_{pedra.name}", "<Button-1>", lambda event, pedra=pedra: self.clickPedra(pedra))
+                # Só habilita clique se for o turno do jogador, as pedras estiverem habilitadas E não for ouro
+                if (self.tabuleiro.jogadorLocal.jogadorEmTurno and 
+                    self.pedras_habilitadas and 
+                    pedra != PedrasEnum.OURO):  # Ouro nunca pode ser comprado diretamente
+                    
+                    # Configura cursor para pedras clicáveis
+                    self.configurar_cursor_clicavel(f"pedra_{pedra.name}")
+                    
+                    self.canvas.tag_bind(f"pedra_{pedra.name}", "<Button-1>", 
+                                       lambda event, pedra=pedra: self.clickPedra(pedra))
                 
                 # Quantity text
                 self.canvas.create_text(
@@ -1036,7 +1682,7 @@ class TelaJogo:
                     fill='white',
                     font=('Aclonica', 14)
                 )
-    
+
     def desenharInfosJogadores(self):
         # Carregue as imagens de fundo (só uma vez)
         if not hasattr(self, "bg_jogador_local"):
@@ -1142,15 +1788,36 @@ class TelaJogo:
 
     def comprarCartaReservada(self, indice_carta_reservada: int):
         """Compra uma carta da reserva do jogador"""
-        cartas_reservadas = self.tabuleiro.jogadorLocal.cartasReservadas()
+        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
         if 0 <= indice_carta_reservada < len(cartas_reservadas):
             carta = cartas_reservadas[indice_carta_reservada]
             
             # Verifica se tem pedras suficientes
             if self.tabuleiro.verificarPedrasSuficientes(carta):
-                # Remove pedras do jogador
+                # Remove pedras do jogador, usando ouro como coringa se necessário
                 pedras_carta = carta.pegarPedrasDaCarta()
-                self.tabuleiro.jogadorLocal.removerPedras(pedras_carta)
+                pedras_jogador = self.tabuleiro.jogadorLocal.pegarPedras()
+                
+                # Calcula quantas pedras de ouro serão usadas
+                ouro_usado = 0
+                
+                for pedra, quantidade_necessaria in pedras_carta.items():
+                    pedras_disponiveis = pedras_jogador.get(pedra, 0)
+                    
+                    if pedras_disponiveis < quantidade_necessaria:
+                        # Precisa usar ouro como coringa
+                        ouro_necessario = quantidade_necessaria - pedras_disponiveis
+                        ouro_usado += ouro_necessario
+                        
+                        # Remove as pedras disponíveis do tipo específico
+                        self.tabuleiro.jogadorLocal.removerPedras({pedra: pedras_disponiveis})
+                    else:
+                        # Remove todas as pedras necessárias do tipo específico
+                        self.tabuleiro.jogadorLocal.removerPedras({pedra: quantidade_necessaria})
+                
+                # Remove as pedras de ouro usadas como coringa
+                if ouro_usado > 0:
+                    self.tabuleiro.jogadorLocal.removerPedras({PedrasEnum.OURO: ouro_usado})
                 
                 # Remove da reserva e adiciona à mão
                 self.tabuleiro.jogadorLocal.cartasReservadas.pop(indice_carta_reservada)
@@ -1179,24 +1846,40 @@ class TelaJogo:
         if self.cartaSelecionada is None:
             return
         
+        print(f"=== RESERVA DE CARTA ===")
+        print(f"Reservando carta: {self.cartaSelecionada.id}")
+        print(f"Nível da carta: {self.cartaSelecionada.nivel.name} (valor: {self.cartaSelecionada.nivel.value})")
+        
         # Adiciona carta à reserva do jogador
         if self.tabuleiro.jogadorLocal.reservarCarta(self.cartaSelecionada):
+            print("Carta adicionada à reserva com sucesso")
             # Remove a carta do tabuleiro
-            indice = self.tabuleiro.cartasNoTabuleiro.index(self.cartaSelecionada)
-            self.tabuleiro.cartasNoTabuleiro[indice] = None
-            
-            # Repõe imediatamente uma nova carta
-            nivel = self.cartaSelecionada.pegarNivel()
-            self.reporTabuleiro(nivel)
-            
-            # Adiciona uma pedra de ouro se disponível
-            if self.tabuleiro.pedrasNoTabuleiro[PedrasEnum.OURO] > 0:
-                self.tabuleiro.jogadorLocal.adicionarPedraNaMao(PedrasEnum.OURO, 1)
-                self.tabuleiro.pedrasNoTabuleiro[PedrasEnum.OURO] -= 1
-            
-            self.cartaSelecionada = None
-            self.desenharTabuleiro()
+            try:
+                indice = self.tabuleiro.cartasNoTabuleiro.index(self.cartaSelecionada)
+                print(f"Carta encontrada no índice {indice}, removendo...")
+                self.tabuleiro.cartasNoTabuleiro[indice] = None
+                print(f"Carta removida do tabuleiro. Estado: {[c.id if c else None for c in self.tabuleiro.cartasNoTabuleiro]}")
+                
+                # Repõe imediatamente uma nova carta do mesmo nível
+                nivel = self.cartaSelecionada.pegarNivel()
+                print(f"Repondo carta do nível {nivel.value}")
+                self.reporTabuleiro(nivel)
+                
+                # Adiciona uma pedra de ouro se disponível
+                if self.tabuleiro.pedrasNoTabuleiro[PedrasEnum.OURO] > 0:
+                    self.tabuleiro.jogadorLocal.adicionarPedraNaMao(PedrasEnum.OURO, 1)
+                    self.tabuleiro.pedrasNoTabuleiro[PedrasEnum.OURO] -= 1
+                    messagebox.showinfo("Pedra de Ouro", "Você recebeu uma pedra de ouro por reservar a carta!")
+                
+                self.cartaSelecionada = None
+                print("Redesenhando tabuleiro após reserva")
+                self.desenharTabuleiro()
+                print("=== FIM RESERVA ===")
+            except ValueError as e:
+                print(f"Erro ao encontrar carta no tabuleiro: {e}")
+                self.notificarJogadaInvalida("Erro ao reservar carta: carta não encontrada no tabuleiro.")
         else:
+            print("Falha ao adicionar carta à reserva")
             self.notificarJogadaInvalida("Não foi possível reservar esta carta.")
 
     def realizarCompraCarta(self):
@@ -1204,9 +1887,30 @@ class TelaJogo:
         if self.cartaSelecionada is None:
             return
         
-        # Remove pedras do jogador
+        # Remove pedras do jogador, usando ouro como coringa se necessário
         pedras_carta = self.cartaSelecionada.pegarPedrasDaCarta()
-        self.tabuleiro.jogadorLocal.removerPedras(pedras_carta)
+        pedras_jogador = self.tabuleiro.jogadorLocal.pegarPedras()
+        
+        # Calcula quantas pedras de ouro serão usadas
+        ouro_usado = 0
+        
+        for pedra, quantidade_necessaria in pedras_carta.items():
+            pedras_disponiveis = pedras_jogador.get(pedra, 0)
+            
+            if pedras_disponiveis < quantidade_necessaria:
+                # Precisa usar ouro como coringa
+                ouro_necessario = quantidade_necessaria - pedras_disponiveis
+                ouro_usado += ouro_necessario
+                
+                # Remove as pedras disponíveis do tipo específico
+                self.tabuleiro.jogadorLocal.removerPedras({pedra: pedras_disponiveis})
+            else:
+                # Remove todas as pedras necessárias do tipo específico
+                self.tabuleiro.jogadorLocal.removerPedras({pedra: quantidade_necessaria})
+        
+        # Remove as pedras de ouro usadas como coringa
+        if ouro_usado > 0:
+            self.tabuleiro.jogadorLocal.removerPedras({PedrasEnum.OURO: ouro_usado})
         
         # Adiciona carta ao jogador
         self.tabuleiro.jogadorLocal.adicionarCarta(self.cartaSelecionada)
@@ -1225,7 +1929,7 @@ class TelaJogo:
         indice = self.tabuleiro.cartasNoTabuleiro.index(self.cartaSelecionada)
         self.tabuleiro.cartasNoTabuleiro[indice] = None
         
-        # Repõe imediatamente uma nova carta
+        # Repõe imediatamente uma nova carta do mesmo nível
         self.reporTabuleiro(nivel)
         
         self.cartaSelecionada = None
@@ -1269,11 +1973,17 @@ class TelaJogo:
             self.realizarCompraPedras()
 
         if self.cartaSelecionada and len(self.pedrasSelecionadas)==0:
-            # Verifica se está no modo de compra ou reserva
-            if hasattr(self, 'modo_reserva') and self.modo_reserva:
-                self.realizarReservaCarta()
+            # Verifica se é uma carta reservada ou do tabuleiro
+            cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+            if self.cartaSelecionada in cartas_reservadas:
+                # Compra carta reservada
+                self.comprarCartaReservada(cartas_reservadas.index(self.cartaSelecionada))
             else:
-                self.realizarCompraCarta()
+                # Verifica se está no modo de compra ou reserva
+                if hasattr(self, 'modo_reserva') and self.modo_reserva:
+                    self.realizarReservaCarta()
+                else:
+                    self.realizarCompraCarta()
             
             ultima_partida = self.tabuleiro.ehUltimaPartida()
             if ultima_partida:
@@ -1293,3 +2003,171 @@ class TelaJogo:
         
         self.atualizarTabuleiro(self.tabuleiro)
         self.finalizar_jogada_callback(self.tabuleiro)
+
+    def desenharCartasReservadas(self):
+        """Desenha as cartas reservadas do jogador local na área específica"""
+        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+        print(f"Desenhando cartas reservadas: {len(cartas_reservadas)} cartas")
+        
+        if cartas_reservadas:
+            # Label "Reservadas" - posicionado mais abaixo
+            self.canvas.create_text(
+                self.WINDOW_WIDTH // 2,
+                self.WINDOW_HEIGHT - 180,
+                text="CARTAS RESERVADAS",
+                fill="white",
+                font=("Arial", 14, "bold"),
+                anchor="n"
+            )
+            
+            # Organiza em 3 colunas
+            colunas = 3
+            
+            for i, carta in enumerate(cartas_reservadas):
+                print(f"Desenhando carta reservada {i}: {carta.id}")
+                coluna = i % colunas
+                linha = i // colunas
+                
+                # Posição centralizada na parte inferior, bem mais abaixo para evitar sobreposição
+                x_base = self.WINDOW_WIDTH // 2
+                y_base = self.WINDOW_HEIGHT - 140
+                
+                # Espaçamento entre colunas
+                x = x_base + (coluna - 1) * 80
+                y = y_base - linha * 30
+                
+                # Carrega a imagem da carta
+                img_tk = self.get_carta_img(carta)
+                if img_tk:
+                    # Desenha a carta completa (não cortada para cartas reservadas)
+                    self.canvas.create_image(
+                        x, y, 
+                        image=img_tk, 
+                        anchor='s',
+                        tags=f"carta_reservada_{i}"
+                    )
+                    
+                    # Adiciona clique para comprar carta reservada (só quando estiver no modo de compra)
+                    if self.cartas_habilitadas and not self.modo_reserva:
+                        # Configura cursor para cartas reservadas clicáveis
+                        self.configurar_cursor_clicavel(f"carta_reservada_{i}")
+                        self.canvas.tag_bind(f"carta_reservada_{i}", "<Button-1>", lambda event, idx=i: self.clickCartaReservada(idx))
+                    
+                    print(f"Carta reservada {i} desenhada na posição ({x}, {y})")
+                else:
+                    # Fallback: mostra apenas os pontos
+                    self.canvas.create_text(
+                        x, y, 
+                        text=str(carta.pontos), 
+                        fill="white", 
+                        font=("Arial", 16, "bold"),
+                        tags=f"carta_reservada_{i}"
+                    )
+        else:
+            print("Nenhuma carta reservada para desenhar")
+
+    def clickCartaReservada(self, indice_carta_reservada: int):
+        """Método chamado quando uma carta reservada é clicada"""
+        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+        if 0 <= indice_carta_reservada < len(cartas_reservadas):
+            carta = cartas_reservadas[indice_carta_reservada]
+            
+            # Verifica se tem pedras suficientes
+            if self.tabuleiro.verificarPedrasSuficientes(carta):
+                self.cartaSelecionada = carta
+                messagebox.showinfo("Carta Reservada Selecionada", f"Carta reservada selecionada para compra! Clique em 'Finalizar Jogada' para confirmar.")
+                self.habilitarBotaoFinalizarJogada()
+            else:
+                self.notificarJogadaInvalida("Você não tem pedras suficientes para comprar esta carta reservada.")
+        else:
+            self.notificarJogadaInvalida("Carta reservada não encontrada.")
+
+    def criar_efeito_clique(self, img_original, tipo="botao"):
+        """Cria uma versão com efeito de clique (mais escura)"""
+        try:
+            if isinstance(img_original, ImageTk.PhotoImage):
+                # Converte de volta para PIL para aplicar efeito
+                pil_img = Image.open(f"./resources/botoes/{tipo}.png").resize((150, 100), Image.Resampling.LANCZOS)
+            else:
+                pil_img = img_original.copy()
+            
+            # Aplica um efeito de escurecimento (multiplica por 0.7)
+            pil_img = pil_img.convert("RGBA")
+            data = pil_img.getdata()
+            new_data = []
+            for item in data:
+                new_data.append((int(item[0] * 0.7), int(item[1] * 0.7), int(item[2] * 0.7), item[3]))
+            pil_img.putdata(new_data)
+            
+            return ImageTk.PhotoImage(pil_img)
+        except Exception as e:
+            print(f"Erro ao criar efeito de clique: {e}")
+            return img_original
+
+    def aplicar_efeito_selecao_pedra(self, pedra_enum):
+        """Aplica efeito visual de seleção na pedra"""
+        if pedra_enum in self.pedras:
+            try:
+                # Carrega a imagem original da pedra
+                img_path = f"./resources/pedras/{pedra_enum.name.lower()}.png"
+                pil_img = Image.open(img_path).resize((self.GEM_SIZE, self.GEM_SIZE), Image.Resampling.LANCZOS)
+                
+                # Aplica um efeito de brilho (aumenta o brilho)
+                pil_img = pil_img.convert("RGBA")
+                data = pil_img.getdata()
+                new_data = []
+                for item in data:
+                    r, g, b, a = item
+                    # Aumenta o brilho em 30%
+                    r = min(255, int(r * 1.3))
+                    g = min(255, int(g * 1.3))
+                    b = min(255, int(b * 1.3))
+                    new_data.append((r, g, b, a))
+                pil_img.putdata(new_data)
+                
+                # Adiciona uma borda dourada
+                from PIL import ImageDraw
+                draw = ImageDraw.Draw(pil_img)
+                draw.rectangle([0, 0, self.GEM_SIZE-1, self.GEM_SIZE-1], outline=(255, 215, 0, 255), width=3)
+                
+                img_selecionada = ImageTk.PhotoImage(pil_img)
+                self.efeitos_clique[f"pedra_selecionada_{pedra_enum.name}"] = img_selecionada
+                
+                # Atualiza a imagem no canvas
+                self.canvas.itemconfig(f"pedra_{pedra_enum.name}", image=img_selecionada)
+                
+            except Exception as e:
+                print(f"Erro ao aplicar efeito de seleção na pedra {pedra_enum.name}: {e}")
+
+    def remover_efeito_selecao_pedra(self, pedra_enum):
+        """Remove o efeito visual de seleção da pedra"""
+        if pedra_enum in self.pedras:
+            # Restaura a imagem original
+            self.canvas.itemconfig(f"pedra_{pedra_enum.name}", image=self.pedras[pedra_enum])
+
+    def aplicar_efeito_clique_botao(self, nome_botao):
+        """Aplica efeito de clique no botão"""
+        if nome_botao in self.botoes:
+            try:
+                # Cria versão com efeito de clique
+                img_clique = self.criar_efeito_clique(self.botoes[nome_botao], nome_botao)
+                self.efeitos_clique[f"botao_clique_{nome_botao}"] = img_clique
+                
+                # Aplica o efeito
+                self.canvas.itemconfig(f"botao_{nome_botao}", image=img_clique)
+                
+                # Remove o efeito após 100ms
+                self.root.after(100, lambda: self.remover_efeito_clique_botao(nome_botao))
+                
+            except Exception as e:
+                print(f"Erro ao aplicar efeito de clique no botão {nome_botao}: {e}")
+
+    def remover_efeito_clique_botao(self, nome_botao):
+        """Remove o efeito de clique do botão"""
+        if nome_botao in self.botoes:
+            self.canvas.itemconfig(f"botao_{nome_botao}", image=self.botoes[nome_botao])
+
+    def configurar_cursor_clicavel(self, tag, cursor="hand2"):
+        """Configura o cursor para elementos clicáveis"""
+        self.canvas.tag_bind(tag, "<Enter>", lambda e: self.canvas.configure(cursor=cursor))
+        self.canvas.tag_bind(tag, "<Leave>", lambda e: self.canvas.configure(cursor="arrow"))

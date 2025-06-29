@@ -48,6 +48,9 @@ class PlayerInterface(DogPlayerInterface):
             messagebox.showinfo("Turno", "Aguardando jogada do oponente...")
         except Exception as e:
             print(f"Erro ao enviar estado do tabuleiro: {e}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Erro", f"Erro ao enviar jogada: {e}")
 
     def show_screen(self, screen_name: str):
         print(f"Changing to screen: {screen_name}")
@@ -169,6 +172,16 @@ class PlayerInterface(DogPlayerInterface):
                     messagebox.showinfo("Turno", "Agora é seu turno!")
                 except Exception as e:
                     print(f"Erro ao processar movimento: {e}")
+
+    def receive_withdrawal_notification(self):
+        """Chamado quando um jogador desiste da partida"""
+        if self.partida_em_andamento:
+            self.partida_em_andamento = False
+            if hasattr(self, 'current_screen') and hasattr(self.current_screen, 'notificarDesistencia'):
+                self.current_screen.notificarDesistencia()
+            else:
+                messagebox.showinfo("Desistência", "O jogador adversário desistiu da partida.")
+                self.show_screen("inicial")
 
     def clear_screen(self):
         for widget in self.root.winfo_children():
