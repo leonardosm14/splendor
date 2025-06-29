@@ -7,10 +7,15 @@ from .carta import Carta
 from .enums.pedrasEnum import PedrasEnum
 from .enums.niveisEnum import NiveisEnum
 
+# Variável global para o valor mínimo de pontos para vitória
+PONTOS_MINIMOS_VITORIA = 4
+
 class Tabuleiro:
     def __init__(self, jogadorLocal: Jogador, jogadorRemoto: Jogador, seed: int = 0, inicializar_cartas=True):
         self.jogadorLocal = jogadorLocal
         self.jogadorRemoto = jogadorRemoto
+        self.seed_partida = seed  # Armazena o seed da partida
+        
         self.baralhos = [
             Baralho(nivel=NiveisEnum.NIVEL1, seed=seed),
             Baralho(nivel=NiveisEnum.NIVEL2, seed=seed),
@@ -33,6 +38,11 @@ class Tabuleiro:
     def inicializar_cartas_tabuleiro(self):
         """Inicializa as cartas visíveis no tabuleiro"""
         self.cartasNoTabuleiro = []
+        
+        # Usa o seed para determinar qual jogador recebe as cartas de roubo
+        # Isso garante que ambos os jogadores tenham o mesmo resultado
+        rng = random.Random(self.seed_partida)
+        
         for nivel in [0, 1, 2]:  # Níveis enumerados como 0, 1, 2
             for _ in range(4):  # 4 cartas por nível
                 try:
@@ -43,18 +53,27 @@ class Tabuleiro:
                     max_tentativas = min(20, len(self.baralhos[nivel].cartas))  # Não tenta mais que cartas disponíveis
                     
                     while carta and carta.cartaDeRoubo and tentativas < max_tentativas:
-                        # Adiciona a carta de roubo ao jogador local
-                        self.jogadorLocal.adicionarCartaDeRoubo(carta)
-                        print(f"Carta de roubo adicionada ao jogador: {carta.id}")
+                        # Distribui a carta de roubo de forma determinística baseada no seed
+                        # Se o número aleatório for par, vai para jogadorLocal, senão para jogadorRemoto
+                        if rng.randint(0, 1) == 0:
+                            self.jogadorLocal.adicionarCartaDeRoubo(carta)
+                            print(f"Carta de roubo adicionada ao jogador local: {carta.id}")
+                        else:
+                            self.jogadorRemoto.adicionarCartaDeRoubo(carta)
+                            print(f"Carta de roubo adicionada ao jogador remoto: {carta.id}")
                         
                         # Pega outra carta
                         carta = self.baralhos[nivel].pegarCartaDoBaralho()
                         tentativas += 1
                     
-                    # Se ainda é carta de roubo após todas as tentativas, adiciona ao jogador e coloca None no tabuleiro
+                    # Se ainda é carta de roubo após todas as tentativas, distribui de forma determinística
                     if carta and carta.cartaDeRoubo:
-                        self.jogadorLocal.adicionarCartaDeRoubo(carta)
-                        print(f"Carta de roubo final adicionada ao jogador: {carta.id}")
+                        if rng.randint(0, 1) == 0:
+                            self.jogadorLocal.adicionarCartaDeRoubo(carta)
+                            print(f"Carta de roubo final adicionada ao jogador local: {carta.id}")
+                        else:
+                            self.jogadorRemoto.adicionarCartaDeRoubo(carta)
+                            print(f"Carta de roubo final adicionada ao jogador remoto: {carta.id}")
                         self.cartasNoTabuleiro.append(None)
                     else:
                         # Carta normal encontrada
@@ -66,6 +85,7 @@ class Tabuleiro:
         
         print(f"Inicialização concluída. Cartas no tabuleiro: {len(self.cartasNoTabuleiro)}")
         print(f"Cartas de roubo do jogador local: {len([c for c in self.jogadorLocal.pegarCartas() if c.cartaDeRoubo])}")
+        print(f"Cartas de roubo do jogador remoto: {len([c for c in self.jogadorRemoto.pegarCartas() if c.cartaDeRoubo])}")
     
     def verificarPedrasSuficientes(self, carta: Carta) -> bool:
         """Verifica se o jogador local tem pedras suficientes para comprar uma carta, considerando ouro como coringa"""
@@ -140,6 +160,9 @@ class Tabuleiro:
     
     def reposicionarCartasSeNecessario(self):
         """Reposiciona cartas no tabuleiro se necessário"""
+        # Usa o seed para determinar qual jogador recebe as cartas de roubo
+        rng = random.Random(self.seed_partida)
+        
         # Remove cartas None do tabuleiro e repõe com novas cartas
         for i, carta in enumerate(self.cartasNoTabuleiro):
             if carta is None:
@@ -155,9 +178,12 @@ class Tabuleiro:
                         if nova_carta is None:
                             break  # Não há mais cartas no baralho
                         
-                        # Se for carta de roubo, adiciona ao jogador e tenta outra
+                        # Se for carta de roubo, distribui de forma determinística
                         if nova_carta.cartaDeRoubo:
-                            self.jogadorLocal.adicionarCartaDeRoubo(nova_carta)
+                            if rng.randint(0, 1) == 0:
+                                self.jogadorLocal.adicionarCartaDeRoubo(nova_carta)
+                            else:
+                                self.jogadorRemoto.adicionarCartaDeRoubo(nova_carta)
                             tentativas += 1
                             continue
                         else:
@@ -209,8 +235,8 @@ class Tabuleiro:
     
     def verificarFimDeJogo(self):
         """Verifica se as condições de fim de jogo foram atingidas"""
-        if (self.jogadorLocal.pegarPontuacaoJogador() >= 15 or 
-            self.jogadorRemoto.pegarPontuacaoJogador() >= 15):
+        if (self.jogadorLocal.pegarPontuacaoJogador() >= PONTOS_MINIMOS_VITORIA or 
+            self.jogadorRemoto.pegarPontuacaoJogador() >= PONTOS_MINIMOS_VITORIA):
             self.habilitarUltimaPartida()
     
     def avaliarVencedor(self) -> Optional[Jogador]:
@@ -327,6 +353,7 @@ class Tabuleiro:
             "pA": self.partidaEmAndamento,  # Partida em Andamento
             "uP": self.ultimaPartida,  # Última Partida
             "o": self._serializar_oferta_pendente_compact() if hasattr(self, 'oferta_pendente') and self.oferta_pendente else None,  # Oferta
+            "s": getattr(self, 'seed_partida', 0),  # Seed da partida
         }
     
     def _serializar_oferta_pendente_compact(self):
@@ -356,6 +383,18 @@ class Tabuleiro:
         tabuleiro.partidaEmAndamento = data.get("pA", False)
         tabuleiro.ultimaPartida = data.get("uP", False)
         tabuleiro.oferta_pendente = cls._deserializar_oferta_pendente_compact(data.get("o"))
+        tabuleiro.seed_partida = data.get("s", 0)
+        print(f"Tabuleiro deserializado com seed: {tabuleiro.seed_partida}")
+        
+        # Recria os baralhos com o seed correto para garantir consistência
+        if tabuleiro.seed_partida > 0:
+            print(f"Recriando baralhos com seed: {tabuleiro.seed_partida}")
+            tabuleiro.baralhos = [
+                Baralho(nivel=NiveisEnum.NIVEL1, seed=tabuleiro.seed_partida),
+                Baralho(nivel=NiveisEnum.NIVEL2, seed=tabuleiro.seed_partida),
+                Baralho(nivel=NiveisEnum.NIVEL3, seed=tabuleiro.seed_partida)
+            ]
+        
         return tabuleiro
     
     @classmethod

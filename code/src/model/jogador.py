@@ -95,10 +95,12 @@ class Jogador:
         """Retorna a lista de cartas reservadas"""
         return self.cartasReservadas
 
-    def jogadorVenceu(self):
+    def marcarVitoria(self):
+        """Marca o jogador como vencedor"""
         self.jogadorVenceu = True
     
-    def jogadorEmpatou(self):
+    def marcarEmpate(self):
+        """Marca o jogador como empatado"""
         self.jogadorEmpatou = True
     
     def to_dict(self):

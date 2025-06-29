@@ -1,5 +1,9 @@
 from tkinter import *
 from PIL import Image, ImageTk
+from pathlib import Path
+
+# Variável global para o valor mínimo de pontos para vitória
+PONTOS_MINIMOS_VITORIA = 15
 
 class TelaRegras:
     def __init__(self, root: Tk, show_screen, destino_voltar="inicial"):
@@ -41,8 +45,8 @@ class TelaRegras:
             "  Se o jogador roubado não tiver todas as pedras, apenas as que ele tiver serão roubadas.\n"
             "  Se ele não tiver nenhuma, o roubo não pode ser feito.\n\n"
             "Encerramento da Partida:\n"
-            "A partida é encerrada quando um dos jogadores atingir 15 ou mais pontos.\n"
-            "O adversário daquele que alcançou os 15 pontos ainda tem direito a mais uma jogada final\n"
+            f"A partida é encerrada quando um dos jogadores atingir {PONTOS_MINIMOS_VITORIA} ou mais pontos.\n"
+            f"O adversário daquele que alcançou os {PONTOS_MINIMOS_VITORIA} pontos ainda tem direito a mais uma jogada final\n"
             "de compra de carta na tentativa de ultrapassá-lo. Ganha aquele que tiver mais pontos."
         )
 

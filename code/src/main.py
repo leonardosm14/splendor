@@ -120,12 +120,17 @@ class PlayerInterface(DogPlayerInterface):
         self.create_players_instances(start_status)
         self.partida_em_andamento = True
 
+        # Usa sempre o seed fixo 12345
+        self.seed_partida = 12345
+        print(f"Seed fixo usado para a partida: {self.seed_partida}")
+
         self.current_screen = TelaJogo(
             self.root,
             self.show_screen,
             self.jogador_local,
             self.jogador_remoto,
-            self.finalizar_jogada
+            self.finalizar_jogada,
+            self.seed_partida  # Passa o seed para a TelaJogo
         )
 
         if self.jogador_local.jogadorEmTurno:
