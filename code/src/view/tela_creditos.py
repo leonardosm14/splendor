@@ -30,7 +30,7 @@ class TelaCreditos:
         )
 
         # Logo do Splendor
-        logo = Image.open("resources/logo.png")
+        logo = Image.open("resources/extra/logo.png")
         logo = logo.resize((int(logo.width * 0.75), int(logo.height * 0.75)))
         self.logo_photo = ImageTk.PhotoImage(logo)
         self.canvas.create_image(

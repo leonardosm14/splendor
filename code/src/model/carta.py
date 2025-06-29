@@ -71,6 +71,18 @@ class Carta:
             "bonus": self.bonus.name if self.bonus else None,
             "habilitada": self.habilitada
         }
+    
+    def to_dict_compact(self):
+        """Versão compacta para reduzir o tamanho dos dados enviados"""
+        return {
+            "i": self.id,  # ID
+            "p": self.pontos,  # Pontos
+            "n": self.nivel.name,  # Nível
+            "pd": {k.name: v for k, v in self.pedras.items()},  # Pedras
+            "cR": self.cartaDeRoubo,  # Carta de Roubo
+            "b": self.bonus.name if self.bonus else None,  # Bônus
+            "h": self.habilitada  # Habilitada
+        }
 
     @classmethod
     def from_dict(cls, data):
@@ -82,4 +94,17 @@ class Carta:
             cartaDeRoubo=data["cartaDeRoubo"],
             bonus=PedrasEnum[data["bonus"]] if data["bonus"] else None,
             habilitada=data.get("habilitada", True)
+        )
+    
+    @classmethod
+    def from_dict_compact(cls, data):
+        """Versão compacta para deserialização"""
+        return cls(
+            id=data["i"],
+            pontos=data["p"],
+            nivel=NiveisEnum[data["n"]],
+            pedras={PedrasEnum[k]: v for k, v in data["pd"].items()},
+            cartaDeRoubo=data["cR"],
+            bonus=PedrasEnum[data["b"]] if data["b"] else None,
+            habilitada=data.get("h", True)
         )

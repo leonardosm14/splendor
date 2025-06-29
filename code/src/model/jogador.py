@@ -110,6 +110,17 @@ class Jogador:
             "pedrasEmMao": {pedra.name: qtd for pedra, qtd in self.pedrasEmMao.items()},
             "cartasReservadas": [carta.to_dict() for carta in self.cartasReservadas],
         }
+    
+    def to_dict_compact(self):
+        """Versão compacta para reduzir o tamanho dos dados enviados"""
+        return {
+            "n": self.nome,  # Nome
+            "p": self.pontuacao,  # Pontuação
+            "jT": self.jogadorEmTurno,  # Jogador em Turno
+            "cM": [carta.to_dict_compact() for carta in self.cartasEmMao],  # Cartas em Mão
+            "pM": {pedra.name: qtd for pedra, qtd in self.pedrasEmMao.items()},  # Pedras em Mão
+            "cR": [carta.to_dict_compact() for carta in self.cartasReservadas],  # Cartas Reservadas
+        }
 
     @classmethod
     def from_dict(cls, data):
@@ -120,4 +131,14 @@ class Jogador:
         jogador.cartasEmMao = [Carta.from_dict(c) for c in data["cartasEmMao"]]
         jogador.pedrasEmMao = {PedrasEnum[k]: v for k, v in data["pedrasEmMao"].items()}
         jogador.cartasReservadas = [Carta.from_dict(c) for c in data["cartasReservadas"]]
+        return jogador
+    
+    @classmethod
+    def from_dict_compact(cls, data):
+        """Versão compacta para deserialização"""
+        jogador = cls(data["n"], data["jT"])
+        jogador.pontuacao = data["p"]
+        jogador.cartasEmMao = [Carta.from_dict_compact(carta_data) for carta_data in data["cM"]]
+        jogador.pedrasEmMao = {PedrasEnum[pedra_name]: qtd for pedra_name, qtd in data["pM"].items()}
+        jogador.cartasReservadas = [Carta.from_dict_compact(carta_data) for carta_data in data["cR"]]
         return jogador

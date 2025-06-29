@@ -22,7 +22,7 @@ class TelaRegras:
 
         # Título
         self.canvas.create_text(
-            540, 100,
+            540, 80,
             text="Regras do Jogo",
             fill="white",
             font=('Aclonica', 36, 'bold')

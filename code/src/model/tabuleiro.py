@@ -23,12 +23,6 @@ class Tabuleiro:
         self.ultimaPartida = False
         self.todasCartas = list()
         self.oferta_pendente = None
-        if inicializar_cartas:
-            for i in range(3):  # Níveis 1, 2 e 3
-                for _ in range(4):  # 4 cartas por nível
-                    carta = self.baralhos[i].pegarCartaDoBaralho()
-                    if carta:
-                        self.cartasNoTabuleiro.append(carta)
     
     def jogadorLocal(self):
         return self.jogadorLocal
@@ -43,14 +37,35 @@ class Tabuleiro:
             for _ in range(4):  # 4 cartas por nível
                 try:
                     carta = self.baralhos[nivel].pegarCartaDoBaralho()
-                    # Se for carta de roubo, pega outra carta
-                    while carta and carta.cartaDeRoubo:
+                    
+                    # Se for carta de roubo, pega outra carta até encontrar uma normal
+                    tentativas = 0
+                    max_tentativas = min(20, len(self.baralhos[nivel].cartas))  # Não tenta mais que cartas disponíveis
+                    
+                    while carta and carta.cartaDeRoubo and tentativas < max_tentativas:
+                        # Adiciona a carta de roubo ao jogador local
+                        self.jogadorLocal.adicionarCartaDeRoubo(carta)
+                        print(f"Carta de roubo adicionada ao jogador: {carta.id}")
+                        
+                        # Pega outra carta
                         carta = self.baralhos[nivel].pegarCartaDoBaralho()
-                    self.cartasNoTabuleiro.append(carta)
+                        tentativas += 1
+                    
+                    # Se ainda é carta de roubo após todas as tentativas, adiciona ao jogador e coloca None no tabuleiro
+                    if carta and carta.cartaDeRoubo:
+                        self.jogadorLocal.adicionarCartaDeRoubo(carta)
+                        print(f"Carta de roubo final adicionada ao jogador: {carta.id}")
+                        self.cartasNoTabuleiro.append(None)
+                    else:
+                        # Carta normal encontrada
+                        self.cartasNoTabuleiro.append(carta)
+                        
                 except (ValueError, IndexError) as e:
                     print(f"Erro ao pegar carta do baralho nível {nivel}: {e}")
                     self.cartasNoTabuleiro.append(None)
-                    
+        
+        print(f"Inicialização concluída. Cartas no tabuleiro: {len(self.cartasNoTabuleiro)}")
+        print(f"Cartas de roubo do jogador local: {len([c for c in self.jogadorLocal.pegarCartas() if c.cartaDeRoubo])}")
     
     def verificarPedrasSuficientes(self, carta: Carta) -> bool:
         """Verifica se o jogador local tem pedras suficientes para comprar uma carta, considerando ouro como coringa"""
@@ -97,7 +112,12 @@ class Tabuleiro:
                     habilitada=habilitada)
         self.todasCartas.append(carta)
         # Adicione ao baralho correto
-        self.baralhos[nivel.value - 1].adicionarCarta(carta)
+        baralho_idx = nivel.value - 1
+        if 0 <= baralho_idx < len(self.baralhos):
+            self.baralhos[baralho_idx].adicionarCarta(carta)
+            print(f"Carta {id} adicionada ao baralho {nivel.name} (índice {baralho_idx})")
+        else:
+            print(f"ERRO: Índice de baralho inválido {baralho_idx} para nível {nivel.name}")
 
     def ehUltimaPartida(self) -> bool:
         return self.ultimaPartida
@@ -126,9 +146,28 @@ class Tabuleiro:
                 # Determina o nível baseado no índice
                 nivel_idx = i // 4
                 if nivel_idx < len(self.baralhos) and self.baralhos[nivel_idx].temCartas():
-                    nova_carta = self.baralhos[nivel_idx].pegarCartaDoBaralho()
-                    if nova_carta:
-                        self.cartasNoTabuleiro[i] = nova_carta
+                    # Tenta pegar uma carta normal (não de roubo)
+                    tentativas = 0
+                    max_tentativas = 10
+                    
+                    while tentativas < max_tentativas:
+                        nova_carta = self.baralhos[nivel_idx].pegarCartaDoBaralho()
+                        if nova_carta is None:
+                            break  # Não há mais cartas no baralho
+                        
+                        # Se for carta de roubo, adiciona ao jogador e tenta outra
+                        if nova_carta.cartaDeRoubo:
+                            self.jogadorLocal.adicionarCartaDeRoubo(nova_carta)
+                            tentativas += 1
+                            continue
+                        else:
+                            # Carta normal encontrada, coloca no tabuleiro
+                            self.cartasNoTabuleiro[i] = nova_carta
+                            break
+                    
+                    # Se não conseguiu encontrar uma carta normal, deixa como None
+                    if tentativas >= max_tentativas:
+                        print(f"Não foi possível repor carta na posição {i} do nível {nivel_idx}")
     
     def pegarCartaDoTabuleiro(self, indiceCarta: int) -> Tuple[Optional[Carta], bool]:
         if 0 <= indiceCarta < len(self.cartasNoTabuleiro):
@@ -278,19 +317,20 @@ class Tabuleiro:
     
 
     def to_dict(self):
+        # Versão compactada para reduzir o tamanho dos dados enviados
         return {
-            "jogadorLocal": self.jogadorLocal.to_dict(),
-            "jogadorRemoto": self.jogadorRemoto.to_dict(),
-            "pedrasNoTabuleiro": {pedra.name: qtd for pedra, qtd in self.pedrasNoTabuleiro.items()},
-            "cartasNoTabuleiro": [carta.to_dict() if carta else None for carta in self.cartasNoTabuleiro],
-            "rodada": self.rodada,
-            "partidaEmAndamento": self.partidaEmAndamento,
-            "ultimaPartida": self.ultimaPartida,
-            "oferta_pendente": self._serializar_oferta_pendente() if hasattr(self, 'oferta_pendente') and self.oferta_pendente else None,
+            "jL": self.jogadorLocal.to_dict_compact(),  # Jogador Local
+            "jR": self.jogadorRemoto.to_dict_compact(),  # Jogador Remoto
+            "p": {pedra.name: qtd for pedra, qtd in self.pedrasNoTabuleiro.items()},  # Pedras
+            "c": [carta.to_dict_compact() if carta else None for carta in self.cartasNoTabuleiro],  # Cartas
+            "r": self.rodada,  # Rodada
+            "pA": self.partidaEmAndamento,  # Partida em Andamento
+            "uP": self.ultimaPartida,  # Última Partida
+            "o": self._serializar_oferta_pendente_compact() if hasattr(self, 'oferta_pendente') and self.oferta_pendente else None,  # Oferta
         }
     
-    def _serializar_oferta_pendente(self):
-        """Serializa a oferta pendente convertendo PedrasEnum para strings"""
+    def _serializar_oferta_pendente_compact(self):
+        """Serializa a oferta pendente de forma compacta"""
         if not self.oferta_pendente:
             return None
         
@@ -302,25 +342,25 @@ class Tabuleiro:
             }
         except Exception as e:
             print(f"Erro ao serializar oferta pendente: {e}")
-            print(f"Oferta pendente: {self.oferta_pendente}")
             return None
 
     @classmethod
     def from_dict(cls, data):
-        jogador_local = Jogador.from_dict(data["jogadorLocal"])
-        jogador_remoto = Jogador.from_dict(data["jogadorRemoto"])
+        # Versão compactada para deserialização
+        jogador_local = Jogador.from_dict_compact(data["jL"])
+        jogador_remoto = Jogador.from_dict_compact(data["jR"])
         tabuleiro = cls(jogador_local, jogador_remoto, inicializar_cartas=False)
-        tabuleiro.pedrasNoTabuleiro = {PedrasEnum[p]: v for p, v in data["pedrasNoTabuleiro"].items()}
-        tabuleiro.cartasNoTabuleiro = [Carta.from_dict(c) if c else None for c in data["cartasNoTabuleiro"]]
-        tabuleiro.rodada = data.get("rodada", 0)
-        tabuleiro.partidaEmAndamento = data.get("partidaEmAndamento", False)
-        tabuleiro.ultimaPartida = data.get("ultimaPartida", False)
-        tabuleiro.oferta_pendente = cls._deserializar_oferta_pendente(data.get("oferta_pendente"))
+        tabuleiro.pedrasNoTabuleiro = {PedrasEnum[p]: v for p, v in data["p"].items()}
+        tabuleiro.cartasNoTabuleiro = [Carta.from_dict_compact(c) if c else None for c in data["c"]]
+        tabuleiro.rodada = data.get("r", 0)
+        tabuleiro.partidaEmAndamento = data.get("pA", False)
+        tabuleiro.ultimaPartida = data.get("uP", False)
+        tabuleiro.oferta_pendente = cls._deserializar_oferta_pendente_compact(data.get("o"))
         return tabuleiro
     
     @classmethod
-    def _deserializar_oferta_pendente(cls, oferta_data):
-        """Deserializa a oferta pendente convertendo strings para PedrasEnum"""
+    def _deserializar_oferta_pendente_compact(cls, oferta_data):
+        """Deserializa a oferta pendente de forma compacta"""
         if not oferta_data:
             return None
         
@@ -332,5 +372,4 @@ class Tabuleiro:
             }
         except Exception as e:
             print(f"Erro ao deserializar oferta pendente: {e}")
-            print(f"Dados da oferta: {oferta_data}")
             return None
