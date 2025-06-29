@@ -28,10 +28,16 @@ class Tabuleiro:
         self.todasCartas = list()
         self.oferta_pendente = None
     
-    def jogadorLocal(self):
+    def pegarCartaTabuleiro(self, idx: int) -> Optional[Carta]:
+        """Retorna a carta no índice especificado do tabuleiro, ou None se não houver carta"""
+        if 0 <= idx < len(self.cartasNoTabuleiro):
+            return self.cartasNoTabuleiro[idx]
+        return None
+    
+    def pegarJogadorLocal(self):
         return self.jogadorLocal
     
-    def jogadorRemoto(self):
+    def pegarJogadorRemoto(self):
         return self.jogadorRemoto
     
     def inicializar_cartas_tabuleiro(self):

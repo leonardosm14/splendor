@@ -34,18 +34,20 @@ class PlayerInterface(DogPlayerInterface):
 
         self.show_screen("inicial")
 
-    def finalizar_jogada(self, tabuleiro):
-        self.send_move(tabuleiro)
+    def finalizar_jogada(self, tabuleiro, status='next'):
+        self.send_move(tabuleiro, status)
 
-    def send_move(self, tabuleiro):
+    def send_move(self, tabuleiro, status='next'):
         try:
             move_dict = {
                 "tabuleiro_atualizado": tabuleiro.to_dict(),
-                "match_status": "next"  # ou "finished" se for o fim da partida
+                "match_status": status  # 'next' ou 'finished'
             }
             self.dog_server_interface.send_move(move_dict)
-            # Atualiza o tabuleiro localmente para o jogador que enviou a jogada
-            messagebox.showinfo("Turno", "Aguardando jogada do oponente...")
+            if status == 'next':
+                # Atualiza o tabuleiro localmente para o jogador que enviou a jogada
+                messagebox.showinfo("Turno", "Aguardando jogada do oponente...")
+            # Se for finished, não mostra nada (a tela de vitória já aparece)
         except Exception as e:
             print(f"Erro ao enviar estado do tabuleiro: {e}")
             import traceback
@@ -174,7 +176,23 @@ class PlayerInterface(DogPlayerInterface):
                     
                     # Atualiza o tabuleiro (que agora recarrega as imagens automaticamente)
                     self.current_screen.atualizarTabuleiro(tabuleiro_obj)
-                    messagebox.showinfo("Turno", "Agora é seu turno!")
+                    match_status = a_move.get("match_status", "next")
+                    if match_status == "finished":
+                        # Exibe a notificação de vitória/derrota/empate para o jogador remoto
+                        pontos_local = tabuleiro_obj.jogadorLocal.pegarPontuacaoJogador()
+                        pontos_remoto = tabuleiro_obj.jogadorRemoto.pegarPontuacaoJogador()
+                        if pontos_local > pontos_remoto:
+                            vencedor = tabuleiro_obj.jogadorLocal.pegarNome()
+                            messagebox.showinfo("Fim de Jogo", f"Parabéns! {vencedor} venceu a partida!")
+                        elif pontos_remoto > pontos_local:
+                            vencedor = tabuleiro_obj.jogadorRemoto.pegarNome()
+                            messagebox.showinfo("Fim de Jogo", f"Parabéns! {vencedor} venceu a partida!")
+                        else:
+                            messagebox.showinfo("Fim de Jogo", "A partida terminou em empate!")
+                        self.partida_em_andamento = False
+                        self.show_screen("inicial")
+                    else:
+                        messagebox.showinfo("Turno", "Agora é seu turno!")
                 except Exception as e:
                     print(f"Erro ao processar movimento: {e}")
 
