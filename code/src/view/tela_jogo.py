@@ -13,7 +13,7 @@ from model.enums.pedrasEnum import PedrasEnum
 from model.carta import Carta
 
 # Variável global para o valor mínimo de pontos para vitória
-PONTOS_MINIMOS_VITORIA = 4
+PONTOS_MINIMOS_VITORIA = 6
 
 class TelaJogo:
     def __init__(self, root: Tk, show_screen, jogador_local: Jogador, jogador_remoto: Jogador, finalizar_jogada_callback, seed_partida=None):
