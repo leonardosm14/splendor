@@ -7,7 +7,7 @@ from .enums.pedrasEnum import PedrasEnum
 from .enums.niveisEnum import NiveisEnum
 
 # Variável global para o valor mínimo de pontos para vitória
-PONTOS_MINIMOS_VITORIA = 6
+PONTOS_MINIMOS_VITORIA = 15
 
 class Tabuleiro:
     def __init__(self, jogadorLocal: Jogador, jogadorRemoto: Jogador, seed: int = 0, inicializar_cartas=True):
