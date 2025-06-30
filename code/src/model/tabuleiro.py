@@ -25,7 +25,6 @@ class Tabuleiro:
         self.rodada = 0
         self.partidaEmAndamento = False
         self.ultimaPartida = False
-        self.todasCartas = list()
         self.oferta_pendente = None
     
     def pegarCartaTabuleiro(self, idx: int) -> Optional[Carta]:
@@ -135,7 +134,6 @@ class Tabuleiro:
                     cartaDeRoubo=cartaDeRoubo,
                     bonus=bonus,
                     habilitada=habilitada)
-        self.todasCartas.append(carta)
         # Adicione ao baralho correto
         baralho_idx = nivel.value - 1
         if 0 <= baralho_idx < len(self.baralhos):

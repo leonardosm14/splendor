@@ -119,7 +119,7 @@ class PlayerInterface(DogPlayerInterface):
             print("Ainda não há jogadores suficientes. Ignorando início da partida.")
             return
 
-        self.create_players_instances(start_status)
+        self.criar_jogadores(start_status)
         self.partida_em_andamento = True
 
         # Usa sempre o seed fixo 12345
@@ -140,7 +140,7 @@ class PlayerInterface(DogPlayerInterface):
         else:
             messagebox.showinfo("Turno do oponente", "Aguardando jogada do oponente...")
 
-    def create_players_instances(self, start_status):
+    def criar_jogadores(self, start_status):
         players = start_status.get_players()
         local_id = start_status.get_local_id()
 

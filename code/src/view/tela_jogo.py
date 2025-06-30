@@ -116,7 +116,7 @@ class TelaJogo:
         self.canvas.update()
 
         # Verifica se é o turno do jogador local para habilitar jogadas
-        if self.tabuleiro.jogadorLocal.jogadorEmTurno:
+        if self.tabuleiro.pegarJogadorLocal().verificarHabilitado():
             self.habilitarJogadas()
         else:
             self.desabilitarJogadas()
@@ -153,7 +153,7 @@ class TelaJogo:
             self.tabuleiro.seed_partida = self.seed_partida
         
         # Recarrega os baralhos se estiverem vazios (caso de tabuleiro recebido do servidor)
-        self.recarregarBaralhosSeNecessario()
+        self.recarregarBaralhos()
         
         # Recarrega as imagens das cartas para garantir que todas as cartas no tabuleiro
         # tenham suas imagens carregadas corretamente
@@ -162,17 +162,17 @@ class TelaJogo:
         self.desenharTabuleiro()
         
         # Verifica se é o turno do jogador local
-        if self.tabuleiro.jogadorLocal.jogadorEmTurno:
-            self.tabuleiro.jogadorLocal.habilitarJogador()
+        if self.tabuleiro.pegarJogadorLocal().jogadorEmTurno:
+            self.tabuleiro.pegarJogadorLocal().habilitarJogador()
             self.habilitarJogadas()
         else:
-            self.tabuleiro.jogadorLocal.desabilitarJogador()
+            self.tabuleiro.pegarJogadorLocal().desabilitarJogador()
             self.desabilitarJogadas()
         
         # Verifica se há oferta pendente para o jogador atual (local ou remoto)
         self.verificarOfertaPendente()
 
-    def recarregarBaralhosSeNecessario(self):
+    def recarregarBaralhos(self):
         """Recarrega os baralhos se estiverem vazios (caso de tabuleiro recebido do servidor)"""
         # Verifica se algum baralho está vazio
         baralhos_vazios = []
@@ -274,7 +274,7 @@ class TelaJogo:
                 self.get_carta_img(carta)
         
         # Recarrega cartas dos jogadores também
-        for carta in self.tabuleiro.jogadorLocal.pegarCartas():
+        for carta in self.tabuleiro.pegarJogadorLocal().pegarCartas():
             self.get_carta_img(carta)
         
         for carta in self.tabuleiro.jogadorRemoto.pegarCartas():
@@ -299,16 +299,11 @@ class TelaJogo:
         Label(frame, text="O jogador adversário desistiu da partida.", 
               font=("Arial", 12), bg="white", fg="red", wraplength=280).pack(pady=20)
         
-        Button(frame, text="OK", command=lambda: [desistencia_window.destroy(), self.restaurarEstadoInicial()], 
+        Button(frame, text="OK", command=lambda: [desistencia_window.destroy(), self.sairJogo()], 
                font=("Arial", 10), bg="lightgray").pack(pady=10)
-
-    def restaurarEstadoInicial(self):
-        """Restaura o estado inicial do jogo"""
-        self.canvas.destroy()  # Destroi o canvas atual
-        self.show_screen("inicial")  # Retorna para a tela inicial
     
     def desabilitarJogador(self):
-        self.tabuleiro.jogadorLocal.desabilitarJogador()
+        self.tabuleiro.pegarJogadorLocal().desabilitarJogador()
     
     def extrair_dados_carta(self, carta_img_path: Path, nivel: NiveisEnum, roubo=False):
         nome = carta_img_path.stem
@@ -492,7 +487,7 @@ class TelaJogo:
         self.tabuleiro.inicializar_cartas_tabuleiro()
         
         # Verifica se há cartas de roubo e as adiciona aos jogadores
-        cartas_roubo_jogador = [c for c in self.tabuleiro.jogadorLocal.pegarCartas() if c.cartaDeRoubo]
+        cartas_roubo_jogador = [c for c in self.tabuleiro.pegarJogadorLocal().pegarCartas() if c.cartaDeRoubo]
 
     def carregarBotoes(self):
         """Carrega e redimensiona as imagens dos botões"""
@@ -569,7 +564,7 @@ class TelaJogo:
         self.desenharTabuleiro()
         
         # Habilita/desabilita jogadas baseado no turno atual
-        if self.tabuleiro.jogadorLocal.jogadorEmTurno:
+        if self.tabuleiro.pegarJogadorLocal().jogadorEmTurno:
             self.habilitarJogadas()
         else:
             self.desabilitarJogadas()
@@ -607,39 +602,14 @@ class TelaJogo:
         self.ofertaDePedras[jogador] = pedra
         messagebox.showinfo("Troca de Pedras", f"Você selecionou a pedra {pedra} para troca.")
     
-    
-    def exibirPopupTroca(self):
-        """Exibe um popup para troca de pedras"""
-        popup = Toplevel(self.root)
-        popup.title("Troca de Pedras")
-        popup.geometry("300x200")
-        
-        Label(popup, text="Selecione as pedras que deseja trocar:").pack(pady=10)
-
-        pedras_jogador_local = self.tabuleiro.jogadorLocal.pegarPedras()
-        for pedra, qtd in pedras_jogador_local.items():
-            if qtd > 0:
-                pedra_button = Button(popup, text=f"{pedra.name} ({qtd})", 
-                                      command=lambda p=pedra: self.selecionarPedra(p, "local"))
-                pedra_button.pack(pady=5)
-
-        pedras_jogador_remoto = self.tabuleiro.jogadorRemoto.pegarPedras()
-        for pedra, qtd in pedras_jogador_remoto.items():
-            if qtd > 0:
-                pedra_button = Button(popup, text=f"{pedra.name} ({qtd})", 
-                                      command=lambda p=pedra: self.selecionarPedra(p, "remoto"))
-                pedra_button.pack(pady=5)
-        
-        Button(popup, text="Finalizar Troca", command=lambda: [popup.destroy(), self.clickFinalizarJogada()]).pack(pady=10)
-
     def clickOfertaDeTroca(self):
         """Ação ao clicar no botão 'Oferta de Troca'"""
-        if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
+        if not self.tabuleiro.pegarJogadorLocal().jogadorEmTurno:
             messagebox.showinfo("Não é sua vez", "Você só pode fazer oferta de troca no seu turno.")
             return
             
         # Verifica se o jogador tem pedras para trocar
-        pedras_local = self.tabuleiro.jogadorLocal.pegarPedras()
+        pedras_local = self.tabuleiro.pegarJogadorLocal().pegarPedras()
         pedras_remoto = self.tabuleiro.jogadorRemoto.pegarPedras()
         
         pedras_disponiveis_local = {pedra: qtd for pedra, qtd in pedras_local.items() if qtd > 0}
@@ -817,7 +787,7 @@ class TelaJogo:
         self.pedra_remoto_selecionada = None
         
         # Reabilita os botões
-        if self.tabuleiro.jogadorLocal.jogadorEmTurno:
+        if self.tabuleiro.pegarJogadorLocal().jogadorEmTurno:
             self.habilitarJogadas()
         self.desabilitarBotaoDesfazerJogada()
         
@@ -862,7 +832,7 @@ class TelaJogo:
             self.tabuleiro.oferta_pendente = None
         
         # Troca o turno
-        self.tabuleiro.jogadorLocal.jogadorEmTurno = False
+        self.tabuleiro.pegarJogadorLocal().jogadorEmTurno = False
         self.tabuleiro.jogadorRemoto.jogadorEmTurno = True
         
         # Desabilita jogadas do jogador local
@@ -882,7 +852,7 @@ class TelaJogo:
         # se o jogador local está em turno, a oferta deve ter vindo do remoto (que agora é local)
         # e vice-versa
         oferta_para_jogador_atual = (
-            (self.tabuleiro.jogadorLocal.jogadorEmTurno and 
+            (self.tabuleiro.pegarJogadorLocal().jogadorEmTurno and 
              self.tabuleiro.oferta_pendente['jogador_origem'] == 'local') or
             (self.tabuleiro.jogadorRemoto.jogadorEmTurno and 
              self.tabuleiro.oferta_pendente['jogador_origem'] == 'remoto')
@@ -1166,7 +1136,7 @@ class TelaJogo:
                                                 
                         # Se for carta de roubo, distribui para o jogador atual
                         if nova_carta.cartaDeRoubo:
-                            self.tabuleiro.jogadorLocal.adicionarCartaDeRoubo(nova_carta)
+                            self.tabuleiro.pegarJogadorLocal().adicionarCartaDeRoubo(nova_carta)
                             tentativas += 1
                             continue
                         else:
@@ -1199,7 +1169,7 @@ class TelaJogo:
     def desenharCartasJogadores(self):
         """Desenha as cartas dos jogadores nas áreas específicas"""
         # Jogador local (embaixo, centralizado) - mostra cartas cortadas
-        cartas_local = self.tabuleiro.jogadorLocal.pegarCartas()
+        cartas_local = self.tabuleiro.pegarJogadorLocal().pegarCartas()
         if cartas_local:
             # Remove cartas de roubo da lista (elas são tratadas separadamente)
             cartas_normais = [c for c in cartas_local if not c.cartaDeRoubo]
@@ -1348,7 +1318,7 @@ class TelaJogo:
     def desenharCartasRouboJogador(self):
         """Desenha as cartas de roubo dos jogadores"""
         # Jogador local (embaixo) - apenas cartas de roubo que realmente pertencem ao jogador
-        cartas_roubo_local = self.tabuleiro.jogadorLocal.pegarCartas()
+        cartas_roubo_local = self.tabuleiro.pegarJogadorLocal().pegarCartas()
         cartas_roubo_local = [c for c in cartas_roubo_local if c.cartaDeRoubo]
         if cartas_roubo_local:
             for i, carta in enumerate(cartas_roubo_local):
@@ -1430,7 +1400,7 @@ class TelaJogo:
                         x = deck_x + self.CARD_WIDTH + self.DECK_TO_CARDS_GAP + i * (self.CARD_WIDTH + self.HORIZONTAL_GAP)
                         self.canvas.create_image(x, y_pos, image=img_tk, anchor=NW, tags=f"carta_{nivel.name}_{idx}")
                         # Só habilita clique se for o turno do jogador E as cartas estiverem habilitadas
-                        if self.tabuleiro.jogadorLocal.jogadorEmTurno and self.cartas_habilitadas:
+                        if self.tabuleiro.pegarJogadorLocal().jogadorEmTurno and self.cartas_habilitadas:
                             # Configura cursor para cartas clicáveis
                             self.configurar_cursor_clicavel(f"carta_{nivel.name}_{idx}")
                             self.canvas.tag_bind(f"carta_{nivel.name}_{idx}", "<Button-1>", lambda event, idx=idx: self.clickCarta(idx))
@@ -1637,7 +1607,7 @@ class TelaJogo:
         
         # Habilita também as cartas reservadas se não estiver no modo de reserva
         if not self.modo_reserva:
-            cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+            cartas_reservadas = self.tabuleiro.pegarJogadorLocal().pegarCartasReservadas()
             for i, carta in enumerate(cartas_reservadas):
                 # Configura cursor para cartas reservadas clicáveis
                 self.configurar_cursor_clicavel(f"carta_reservada_{i}")
@@ -1661,7 +1631,7 @@ class TelaJogo:
                     self.canvas.tag_unbind(f"carta_{nivel.name}_{idx}", "<Leave>")
                     
                     # Aplica transparência apenas se não for o turno do jogador
-                    if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
+                    if not self.tabuleiro.pegarJogadorLocal().jogadorEmTurno:
                         # Aplica transparência à carta
                         try:
                             # Recarrega a imagem e aplica transparência
@@ -1700,7 +1670,7 @@ class TelaJogo:
                             self.canvas.itemconfig(f"carta_{nivel.name}_{idx}", image=img_tk)
         
         # Desabilita também as cartas reservadas
-        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+        cartas_reservadas = self.tabuleiro.pegarJogadorLocal().pegarCartasReservadas()
         for i, carta in enumerate(cartas_reservadas):
             # Remove cursor pointer e eventos de clique
             self.canvas.tag_unbind(f"carta_reservada_{i}", "<Button-1>")
@@ -1708,7 +1678,7 @@ class TelaJogo:
             self.canvas.tag_unbind(f"carta_reservada_{i}", "<Leave>")
             
             # Aplica transparência apenas se não for o turno do jogador
-            if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
+            if not self.tabuleiro.pegarJogadorLocal().jogadorEmTurno:
                 try:
                     # Recarrega a imagem e aplica transparência
                     diretorios_cartas = [
@@ -1786,7 +1756,7 @@ class TelaJogo:
             self.canvas.tag_unbind(f"pedra_{pedra.name}", "<Leave>")
             
             # Aplica transparência apenas se não for o turno do jogador
-            if not self.tabuleiro.jogadorLocal.jogadorEmTurno:
+            if not self.tabuleiro.pegarJogadorLocal().jogadorEmTurno:
                 caminho = f"./resources/pedras/{pedra.name.lower()}.png"
                 try:
                     pil_img = Image.open(caminho).resize((self.GEM_SIZE, self.GEM_SIZE), Image.Resampling.LANCZOS).convert("RGBA")
@@ -1805,21 +1775,21 @@ class TelaJogo:
                     self.canvas.itemconfig(f"pedra_{pedra.name}", image=self.pedras[pedra])
 
     def avaliarVencedor(self):
-        pontos1 = self.tabuleiro.jogadorLocal.pegarPontuacaoJogador()
+        pontos1 = self.tabuleiro.pegarJogadorLocal().pegarPontuacaoJogador()
         pontos2 = self.tabuleiro.jogadorRemoto.pegarPontuacaoJogador()
 
         # Verifica se pelo menos um jogador atingiu a pontuação mínima
         if pontos1 >= PONTOS_MINIMOS_VITORIA or pontos2 >= PONTOS_MINIMOS_VITORIA:
             if pontos1 > pontos2:
                 vencedor = self.tabuleiro.pegarNomeJogador()
-                self.tabuleiro.jogadorLocal.marcarVitoria()
+                self.tabuleiro.pegarJogadorLocal().marcarVitoria()
                 self.notificarVencedor(vencedor)
             elif pontos2 > pontos1:
                 vencedor = self.tabuleiro.jogadorRemoto.pegarNome()
                 self.tabuleiro.jogadorRemoto.marcarVitoria()
                 self.notificarVencedor(vencedor)
             else:
-                self.tabuleiro.jogadorLocal.marcarEmpate()
+                self.tabuleiro.pegarJogadorLocal().marcarEmpate()
                 self.tabuleiro.jogadorRemoto.marcarEmpate()
                 self.notificarEmpate()
         else:
@@ -1899,7 +1869,7 @@ class TelaJogo:
                 )
                 
                 # Só habilita clique se for o turno do jogador, as pedras estiverem habilitadas E não for ouro
-                if (self.tabuleiro.jogadorLocal.jogadorEmTurno and 
+                if (self.tabuleiro.pegarJogadorLocal().jogadorEmTurno and 
                     self.pedras_habilitadas and 
                     pedra != PedrasEnum.OURO):  # Ouro nunca pode ser comprado diretamente
                     
@@ -1946,7 +1916,7 @@ class TelaJogo:
         y_pontos = y_nome + 25
         y_pedra = y_pontos + 30
 
-        jogador_local = self.tabuleiro.jogadorLocal
+        jogador_local = self.tabuleiro.pegarJogadorLocal()
         self.canvas.create_text(
             self.PLAYER_INFO_X + 15,
             y_nome,
@@ -2023,7 +1993,7 @@ class TelaJogo:
 
     def comprarCartaReservada(self, indice_carta_reservada: int):
         """Compra uma carta da reserva do jogador"""
-        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+        cartas_reservadas = self.tabuleiro.pegarJogadorLocal().pegarCartasReservadas()
         if 0 <= indice_carta_reservada < len(cartas_reservadas):
             carta = cartas_reservadas[indice_carta_reservada]
             
@@ -2031,7 +2001,7 @@ class TelaJogo:
             if self.tabuleiro.verificarPedrasSuficientes(carta):
                 # Remove pedras do jogador, usando ouro como coringa se necessário
                 pedras_carta = carta.pegarPedrasDaCarta()
-                pedras_jogador = self.tabuleiro.jogadorLocal.pegarPedras()
+                pedras_jogador = self.tabuleiro.pegarJogadorLocal().pegarPedras()
                 
                 # Calcula quantas pedras de ouro serão usadas
                 ouro_usado = 0
@@ -2045,27 +2015,27 @@ class TelaJogo:
                         ouro_usado += ouro_necessario
                         
                         # Remove as pedras disponíveis do tipo específico
-                        self.tabuleiro.jogadorLocal.removerPedras({pedra: pedras_disponiveis})
+                        self.tabuleiro.pegarJogadorLocal().removerPedras({pedra: pedras_disponiveis})
                     else:
                         # Remove todas as pedras necessárias do tipo específico
-                        self.tabuleiro.jogadorLocal.removerPedras({pedra: quantidade_necessaria})
+                        self.tabuleiro.pegarJogadorLocal().removerPedras({pedra: quantidade_necessaria})
                 
                 # Remove as pedras de ouro usadas como coringa
                 if ouro_usado > 0:
-                    self.tabuleiro.jogadorLocal.removerPedras({PedrasEnum.OURO: ouro_usado})
+                    self.tabuleiro.pegarJogadorLocal().removerPedras({PedrasEnum.OURO: ouro_usado})
                 
                 # Remove da reserva e adiciona à mão
-                self.tabuleiro.jogadorLocal.cartasReservadas.pop(indice_carta_reservada)
-                self.tabuleiro.jogadorLocal.adicionarCarta(carta)
+                self.tabuleiro.pegarJogadorLocal().cartasReservadas.pop(indice_carta_reservada)
+                self.tabuleiro.pegarJogadorLocal().adicionarCarta(carta)
                 
                 # Adiciona pontos e bônus
                 pontos = carta.pegarPontos()
                 if pontos > 0:
-                    self.tabuleiro.jogadorLocal.adicionarPontos(pontos)
+                    self.tabuleiro.pegarJogadorLocal().adicionarPontos(pontos)
                 
                 if carta.temBonus():
                     bonus = carta.pegarBonus()
-                    self.tabuleiro.jogadorLocal.adicionarBonus(bonus)
+                    self.tabuleiro.pegarJogadorLocal().adicionarBonus(bonus)
                 
                 self.desenharTabuleiro()
                 return True
@@ -2082,7 +2052,7 @@ class TelaJogo:
             return
         
         # Verifica se já tem 3 cartas reservadas (limite máximo)
-        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+        cartas_reservadas = self.tabuleiro.pegarJogadorLocal().pegarCartasReservadas()
         if len(cartas_reservadas) >= 3:
             self.notificarJogadaInvalida("Você já tem 3 cartas reservadas. Não pode reservar mais cartas.")
             return
@@ -2092,7 +2062,7 @@ class TelaJogo:
         baralho = self.tabuleiro.baralhos[nivel.value - 1]
         
         # Adiciona carta à reserva do jogador
-        if self.tabuleiro.jogadorLocal.reservarCarta(self.cartaSelecionada):
+        if self.tabuleiro.pegarJogadorLocal().reservarCarta(self.cartaSelecionada):
             # Remove a carta do tabuleiro
             try:
                 indice = self.tabuleiro.cartasNoTabuleiro.index(self.cartaSelecionada)
@@ -2107,7 +2077,7 @@ class TelaJogo:
                 
                 # Adiciona uma pedra de ouro se disponível
                 if self.tabuleiro.pedrasNoTabuleiro[PedrasEnum.OURO] > 0:
-                    self.tabuleiro.jogadorLocal.adicionarPedraNaMao(PedrasEnum.OURO, 1)
+                    self.tabuleiro.pegarJogadorLocal().adicionarPedraNaMao(PedrasEnum.OURO, 1)
                     self.tabuleiro.pedrasNoTabuleiro[PedrasEnum.OURO] -= 1
                     messagebox.showinfo("Pedra de Ouro", "Você recebeu uma pedra de ouro por reservar a carta!")
                 
@@ -2129,7 +2099,7 @@ class TelaJogo:
         
         # Remove pedras do jogador, usando ouro como coringa se necessário
         pedras_carta = self.cartaSelecionada.pegarPedrasDaCarta()
-        pedras_jogador = self.tabuleiro.jogadorLocal.pegarPedras()
+        pedras_jogador = self.tabuleiro.pegarJogadorLocal().pegarPedras()
         
         # Calcula quantas pedras de ouro serão usadas
         ouro_usado = 0
@@ -2143,26 +2113,26 @@ class TelaJogo:
                 ouro_usado += ouro_necessario
                 
                 # Remove as pedras disponíveis do tipo específico
-                self.tabuleiro.jogadorLocal.removerPedras({pedra: pedras_disponiveis})
+                self.tabuleiro.pegarJogadorLocal().removerPedras({pedra: pedras_disponiveis})
             else:
                 # Remove todas as pedras necessárias do tipo específico
-                self.tabuleiro.jogadorLocal.removerPedras({pedra: quantidade_necessaria})
+                self.tabuleiro.pegarJogadorLocal().removerPedras({pedra: quantidade_necessaria})
         
         # Remove as pedras de ouro usadas como coringa
         if ouro_usado > 0:
-            self.tabuleiro.jogadorLocal.removerPedras({PedrasEnum.OURO: ouro_usado})
+            self.tabuleiro.pegarJogadorLocal().removerPedras({PedrasEnum.OURO: ouro_usado})
         
         # Adiciona carta ao jogador
-        self.tabuleiro.jogadorLocal.adicionarCarta(self.cartaSelecionada)
+        self.tabuleiro.pegarJogadorLocal().adicionarCarta(self.cartaSelecionada)
         
         # Adiciona pontos e bônus
         pontos = self.cartaSelecionada.pegarPontos()
         if pontos > 0:
-            self.tabuleiro.jogadorLocal.adicionarPontos(pontos)
+            self.tabuleiro.pegarJogadorLocal().adicionarPontos(pontos)
         
         if self.cartaSelecionada.temBonus():
             bonus = self.cartaSelecionada.pegarBonus()
-            self.tabuleiro.jogadorLocal.adicionarBonus(bonus)
+            self.tabuleiro.pegarJogadorLocal().adicionarBonus(bonus)
         
         # Remove e repõe a carta no tabuleiro
         nivel = self.cartaSelecionada.pegarNivel()
@@ -2216,7 +2186,7 @@ class TelaJogo:
         
         # Adiciona pedras ao jogador
         for pedra in self.pedrasSelecionadas:
-            self.tabuleiro.jogadorLocal.adicionarPedraNaMao(pedra, 1)
+            self.tabuleiro.pegarJogadorLocal().adicionarPedraNaMao(pedra, 1)
         
         self.desenharTabuleiro()
 
@@ -2226,7 +2196,7 @@ class TelaJogo:
 
         if self.cartaSelecionada and len(self.pedrasSelecionadas)==0:
             # Verifica se é uma carta reservada ou do tabuleiro
-            cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+            cartas_reservadas = self.tabuleiro.pegarJogadorLocal().pegarCartasReservadas()
             if self.cartaSelecionada in cartas_reservadas:
                 # Compra carta reservada
                 self.comprarCartaReservada(cartas_reservadas.index(self.cartaSelecionada))
@@ -2238,7 +2208,7 @@ class TelaJogo:
                     self.realizarCompraCarta()
         
         # Verifica se algum jogador atingiu 15 pontos ou mais
-        pontos_local = self.tabuleiro.jogadorLocal.pegarPontuacaoJogador()
+        pontos_local = self.tabuleiro.pegarJogadorLocal().pegarPontuacaoJogador()
         pontos_remoto = self.tabuleiro.jogadorRemoto.pegarPontuacaoJogador()
         
         # Verifica se é necessário habilitar última partida
@@ -2271,7 +2241,7 @@ class TelaJogo:
         self.modo_reserva = False  # Reseta o modo de reserva
         
         # Troca o turno entre os jogadores
-        self.tabuleiro.jogadorLocal.jogadorEmTurno = False
+        self.tabuleiro.pegarJogadorLocal().jogadorEmTurno = False
         self.tabuleiro.jogadorRemoto.jogadorEmTurno = True
         
         # Desabilita jogadas do jogador local
@@ -2282,7 +2252,7 @@ class TelaJogo:
 
     def desenharCartasReservadas(self):
         """Desenha as cartas reservadas do jogador local na área específica"""
-        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+        cartas_reservadas = self.tabuleiro.pegarJogadorLocal().pegarCartasReservadas()
         
         if cartas_reservadas:
             # Label "Reservadas" - posicionado muito abaixo, fora da tela visível
@@ -2360,7 +2330,7 @@ class TelaJogo:
 
     def clickCartaReservada(self, indice_carta_reservada: int):
         """Método chamado quando uma carta reservada é clicada"""
-        cartas_reservadas = self.tabuleiro.jogadorLocal.pegarCartasReservadas()
+        cartas_reservadas = self.tabuleiro.pegarJogadorLocal().pegarCartasReservadas()
         if 0 <= indice_carta_reservada < len(cartas_reservadas):
             carta = cartas_reservadas[indice_carta_reservada]
             
@@ -2609,7 +2579,7 @@ class TelaJogo:
 
     def clickCartaRoubo(self, indice_carta_roubo: int):
         """Método chamado quando uma carta de roubo é clicada"""
-        cartas_roubo = self.tabuleiro.jogadorLocal.pegarCartas()
+        cartas_roubo = self.tabuleiro.pegarJogadorLocal().pegarCartas()
         cartas_roubo = [c for c in cartas_roubo if c.cartaDeRoubo]
         
         if 0 <= indice_carta_roubo < len(cartas_roubo):
@@ -2654,13 +2624,13 @@ class TelaJogo:
         # Remove a pedra do adversário
         self.tabuleiro.jogadorRemoto.removerPedras({pedra_roubada: 1})
         # Adiciona a pedra ao jogador local
-        self.tabuleiro.jogadorLocal.adicionarPedraNaMao(pedra_roubada, 1)
+        self.tabuleiro.pegarJogadorLocal().adicionarPedraNaMao(pedra_roubada, 1)
         
         # Remove a carta de roubo do jogador
-        cartas_jogador = self.tabuleiro.jogadorLocal.pegarCartas()
+        cartas_jogador = self.tabuleiro.pegarJogadorLocal().pegarCartas()
         for i, carta in enumerate(cartas_jogador):
             if carta.id == carta_roubo.id:
-                self.tabuleiro.jogadorLocal.cartas.pop(i)
+                self.tabuleiro.pegarJogadorLocal().cartas.pop(i)
                 break
         
         messagebox.showinfo("Roubo Realizado", f"Você roubou uma pedra {pedra_roubada.name} do adversário!")

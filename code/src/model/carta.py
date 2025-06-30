@@ -21,8 +21,6 @@ class Carta:
         self.bonus = bonus
         self.habilitada = habilitada
     
-    def pegarPontosDaCarta(self) -> int:
-        return self.pontos
     
     def pegarPontos(self) -> int:
         return self.pontos
